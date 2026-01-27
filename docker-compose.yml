@@ -1,0 +1,134 @@
+services:
+  # ==================== Backend Services ====================
+  backend_api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: noteboard_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+      - neo4j
+      - weaviate
+    networks:
+      - noteboard_network
+
+  backend_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: noteboard_worker
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - noteboard_network
+
+  # ==================== Frontend ====================
+  frontend:
+    image: busybox
+    container_name: noteboard_frontend
+    command: echo "Frontend placeholder - Next.js to be implemented"
+    networks:
+      - noteboard_network
+
+  # ==================== Databases ====================
+  postgres:
+    image: postgres:alpine
+    container_name: noteboard_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-noteboard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-noteboard_secret}
+      POSTGRES_DB: noteboard
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - noteboard_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-noteboard}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:alpine
+    container_name: noteboard_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - noteboard_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  neo4j:
+    image: neo4j:5.20
+    container_name: noteboard_neo4j
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4j_secret}
+      NEO4J_PLUGINS: '["apoc"]'
+    ports:
+      - "7474:7474"  # HTTP Browser
+      - "7687:7687"  # Bolt Protocol
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    networks:
+      - noteboard_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  weaviate:
+    image: semitechnologies/weaviate:1.25.0
+    container_name: noteboard_weaviate
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "true"
+      PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
+      DEFAULT_VECTORIZER_MODULE: "none"
+      CLUSTER_HOSTNAME: "node1"
+    ports:
+      - "8080:8080"
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    networks:
+      - noteboard_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/v1/.well-known/ready || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+# ==================== Networks ====================
+networks:
+  noteboard_network:
+    driver: bridge
+
+# ==================== Volumes ====================
+volumes:
+  postgres_data:
+  redis_data:
+  neo4j_data:
+  neo4j_logs:
+  weaviate_data:
