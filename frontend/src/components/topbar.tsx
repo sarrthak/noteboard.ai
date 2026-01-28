@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
+import { useRouter, usePathname } from "next/navigation";
 import {
   ChevronDown,
   FolderKanban,
@@ -9,24 +10,30 @@ import {
   LogOut,
   Settings,
   User,
+  Loader2,
 } from "lucide-react";
 import { clsx } from "clsx";
-
-// Mock projects for demo - in real app, fetch from API
-const mockProjects = [
-  { id: "1", name: "noteboard.ai" },
-  { id: "2", name: "Project Alpha" },
-  { id: "3", name: "Mobile App" },
-];
+import { useProjectStore } from "@/store/useProjectStore";
 
 export function Topbar() {
   const { data: session } = useSession();
+  const router = useRouter();
+  const pathname = usePathname();
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(mockProjects[0]);
+  
+  const { projects, selectedProjectId, selectProject, fetchProjects, isLoading } = useProjectStore();
+  const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
 
   const projectDropdownRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch projects on mount
+  useEffect(() => {
+    if (session?.accessToken && projects.length === 0) {
+      fetchProjects(session.accessToken);
+    }
+  }, [session?.accessToken, fetchProjects, projects.length]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -49,6 +56,15 @@ export function Topbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const handleProjectSelect = (projectId: string) => {
+    selectProject(projectId);
+    setProjectDropdownOpen(false);
+    // Update URL if on huddle page
+    if (pathname?.includes('/huddle')) {
+      router.push(`${pathname}?project=${projectId}`);
+    }
+  };
+
   const userInitial = session?.user?.email?.[0]?.toUpperCase() || "U";
 
   return (
@@ -63,7 +79,13 @@ export function Topbar() {
           )}
         >
           <FolderKanban className="w-4 h-4 text-primary" />
-          <span className="font-medium text-sm">{selectedProject.name}</span>
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+          ) : (
+            <span className="font-medium text-sm">
+              {selectedProject?.name || "Select Project"}
+            </span>
+          )}
           <ChevronDown
             className={clsx(
               "w-4 h-4 text-muted-foreground transition-transform",
@@ -79,27 +101,33 @@ export function Topbar() {
               <p className="px-2 py-1 text-xs text-muted-foreground uppercase tracking-wide">
                 Projects
               </p>
-              {mockProjects.map((project) => (
-                <button
-                  key={project.id}
-                  onClick={() => {
-                    setSelectedProject(project);
-                    setProjectDropdownOpen(false);
-                  }}
-                  className={clsx(
-                    "w-full flex items-center gap-2 px-2 py-2 rounded-sm text-sm transition-colors",
-                    selectedProject.id === project.id
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground hover:bg-foreground/5"
-                  )}
-                >
-                  <FolderKanban className="w-4 h-4" />
-                  {project.name}
-                </button>
-              ))}
+              {projects.length === 0 ? (
+                <p className="px-2 py-2 text-sm text-muted-foreground">
+                  No projects yet
+                </p>
+              ) : (
+                projects.map((project) => (
+                  <button
+                    key={project.id}
+                    onClick={() => handleProjectSelect(project.id)}
+                    className={clsx(
+                      "w-full flex items-center gap-2 px-2 py-2 rounded-sm text-sm transition-colors",
+                      selectedProjectId === project.id
+                        ? "bg-primary/10 text-primary"
+                        : "text-foreground hover:bg-foreground/5"
+                    )}
+                  >
+                    <FolderKanban className="w-4 h-4" />
+                    {project.name}
+                  </button>
+                ))
+              )}
             </div>
             <div className="border-t border-foreground/10 p-2">
-              <button className="w-full flex items-center gap-2 px-2 py-2 rounded-sm text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors">
+              <button 
+                onClick={() => router.push('/workspace/projects/new')}
+                className="w-full flex items-center gap-2 px-2 py-2 rounded-sm text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+              >
                 <Plus className="w-4 h-4" />
                 New Project
               </button>
