@@ -1,2 +1,25 @@
 .env
 .env.example
+
+# VS Code
+.vscode/launch.json
+.vscode/settings.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Fonts
+*.woff
+*.woff2
+*.ttf
+*.otf
+*.eot
+frontend/src/app/fonts/
