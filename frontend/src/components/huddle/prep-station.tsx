@@ -2,12 +2,16 @@
 
 import { useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Check, X, Loader2 } from "lucide-react";
+import { Mic, MicOff, Check, Trash2, Loader2, Sparkles, CheckCheck } from "lucide-react";
 import { useHuddleStore } from "@/store/useHuddleStore";
 import { useSession } from "next-auth/react";
 import { createAudioFormData } from "@/lib/audio-utils";
 
-export function PrepStation() {
+interface PrepStationProps {
+  projectId?: string;
+}
+
+export function PrepStation({ projectId }: PrepStationProps) {
   const { data: session } = useSession();
   const {
     isRecording,
@@ -19,10 +23,12 @@ export function PrepStation() {
     setDraftTickets,
     approveTicket,
     removeDraftTicket,
+    addCapabilities,
   } = useHuddleStore();
 
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isSynthesizing, setIsSynthesizing] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -49,8 +55,8 @@ export function PrepStation() {
         // Create blob from chunks
         const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
 
-        // Upload to backend
-        await uploadAudio(audioBlob);
+        // Transcribe audio
+        await transcribeAudio(audioBlob);
       };
 
       mediaRecorder.start(1000); // Collect data every second
@@ -68,12 +74,12 @@ export function PrepStation() {
     }
   }, [stopRecording]);
 
-  const uploadAudio = async (audioBlob: Blob) => {
+  const transcribeAudio = async (audioBlob: Blob) => {
     setIsProcessing(true);
 
     try {
       // Convert to WAV format for better compatibility with Whisper API
-      const formData = await createAudioFormData(audioBlob, "audio");
+      const formData = await createAudioFormData(audioBlob, "file");
 
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/huddle/upload`,
@@ -87,23 +93,25 @@ export function PrepStation() {
       );
 
       if (!response.ok) {
-        throw new Error("Failed to upload audio");
+        throw new Error("Failed to transcribe audio");
       }
 
       const data = await response.json();
-      setTranscript(data.transcript);
+      setTranscript(data.text);
     } catch (error) {
-      console.error("Failed to upload audio:", error);
+      console.error("Failed to transcribe audio:", error);
       alert("Failed to process audio. Please try again.");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleSynthesize = async () => {
-    if (!transcript.trim()) return;
+  const handleGenerateTickets = async () => {
+    if (!transcript.trim() || !projectId) {
+      return;
+    }
 
-    setIsSynthesizing(true);
+    setIsGenerating(true);
 
     try {
       const response = await fetch(
@@ -114,21 +122,24 @@ export function PrepStation() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session?.accessToken}`,
           },
-          body: JSON.stringify({ transcript }),
+          body: JSON.stringify({ 
+            transcript,
+            project_id: projectId 
+          }),
         }
       );
 
       if (!response.ok) {
-        throw new Error("Failed to synthesize tickets");
+        throw new Error("Failed to generate tickets");
       }
 
       const data = await response.json();
       setDraftTickets(data.tickets);
     } catch (error) {
-      console.error("Failed to synthesize tickets:", error);
+      console.error("Failed to generate tickets:", error);
       alert("Failed to generate tickets. Please try again.");
     } finally {
-      setIsSynthesizing(false);
+      setIsGenerating(false);
     }
   };
 
@@ -140,8 +151,65 @@ export function PrepStation() {
     }
   };
 
+  // Confirm all draft tickets and add to knowledge graph
+  const handleConfirmAll = async () => {
+    if (!projectId || draftTickets.length === 0) return;
+
+    setIsConfirming(true);
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/huddle/confirm`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.accessToken}`,
+          },
+          body: JSON.stringify({
+            project_id: projectId,
+            tickets: draftTickets.map((t) => ({
+              title: t.title,
+              description: t.description,
+              business_value: t.business_value,
+              type: t.type || "feature",
+              priority: t.priority || "medium",
+              dependencies: t.dependencies || [],
+            })),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to confirm tickets");
+      }
+
+      const data = await response.json();
+
+      // Add capabilities to the local graph store for immediate visualization
+      addCapabilities(
+        data.tickets.map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          description: t.description,
+          business_value: t.business_value,
+          type: t.type,
+          dependencies: draftTickets.find((d) => d.title === t.title)?.dependencies || [],
+        }))
+      );
+
+      // Clear draft tickets
+      setDraftTickets([]);
+    } catch (error) {
+      console.error("Failed to confirm tickets:", error);
+      alert("Failed to confirm tickets. Please try again.");
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
   return (
-    <div className="w-[40%] h-full flex flex-col bg-background border-r border-foreground/10 p-6">
+    <div className="w-[35%] h-full flex flex-col bg-[#1A1A19] border-r border-[#F9F8F4]/10 p-6">
       {/* Header */}
       <h2 className="text-xl font-semibold text-foreground mb-6">Prep Station</h2>
 
@@ -155,8 +223,8 @@ export function PrepStation() {
             flex items-center justify-center
             ${
               isRecording
-                ? "bg-primary text-background"
-                : "bg-transparent border-2 border-primary text-primary hover:bg-primary/10"
+                ? "bg-[#EFD30B] text-[#1A1A19]"
+                : "bg-transparent border-2 border-[#EFD30B] text-[#EFD30B] hover:bg-[#EFD30B]/10"
             }
             ${isProcessing ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
           `}
@@ -164,8 +232,8 @@ export function PrepStation() {
           {/* Pulse animation when recording */}
           {isRecording && (
             <>
-              <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-30" />
-              <span className="absolute inset-0 rounded-full bg-primary animate-pulse opacity-20" />
+              <span className="absolute inset-0 rounded-full bg-[#EFD30B] animate-ping opacity-30" />
+              <span className="absolute inset-0 rounded-full bg-[#EFD30B] animate-pulse opacity-20" />
             </>
           )}
 
@@ -180,7 +248,7 @@ export function PrepStation() {
 
         <p className="mt-3 text-sm text-foreground/60">
           {isProcessing
-            ? "Processing audio..."
+            ? "Transcribing..."
             : isRecording
             ? "Click to stop recording"
             : "Click to start recording"}
@@ -188,37 +256,66 @@ export function PrepStation() {
       </div>
 
       {/* Transcript Area */}
-      <div className="flex-1 flex flex-col min-h-0 mb-6">
+      <div className="flex flex-col mb-6">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-medium text-foreground/80">Transcript</h3>
           {transcript && (
             <button
-              onClick={handleSynthesize}
-              disabled={isSynthesizing}
-              className="text-xs text-primary hover:text-primary-hover transition-colors disabled:opacity-50"
+              onClick={handleGenerateTickets}
+              disabled={isGenerating || !projectId}
+              className="flex items-center gap-1.5 text-xs text-[#EFD30B] hover:text-[#D4BC0A] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={!projectId ? "Select a project first" : "Generate Capabilities"}
             >
-              {isSynthesizing ? "Synthesizing..." : "Generate Tickets →"}
+              <Sparkles className="w-3.5 h-3.5" />
+              {isGenerating ? "Generating..." : "Generate Capabilities"}
             </button>
           )}
         </div>
-        <div className="flex-1 bg-foreground/5 rounded-lg p-4 overflow-y-auto border border-foreground/10">
-          {transcript ? (
-            <p className="text-sm text-foreground/80 whitespace-pre-wrap">
-              {transcript}
+        {!projectId && (
+          <div className="mb-2 px-3 py-2 bg-[#EFD30B]/10 border border-[#EFD30B]/20 rounded-lg">
+            <p className="text-xs text-[#EFD30B]">
+              ⚠️ Select a project from the dropdown above to generate capabilities
             </p>
-          ) : (
-            <p className="text-sm text-foreground/40 italic">
-              Start recording to see your transcript here...
-            </p>
-          )}
-        </div>
+          </div>
+        )}
+        <textarea
+          value={transcript}
+          onChange={(e) => setTranscript(e.target.value)}
+          placeholder="Start recording to see your transcript here, or type/paste text directly..."
+          className="h-40 bg-foreground/5 rounded-lg p-4 text-sm text-foreground/80 
+                     border border-foreground/10 resize-none focus:outline-none 
+                     focus:border-[#EFD30B]/50 focus:ring-1 focus:ring-[#EFD30B]/20
+                     placeholder:text-foreground/40 placeholder:italic"
+        />
       </div>
 
       {/* Draft Zone */}
       <div className="flex-1 flex flex-col min-h-0">
-        <h3 className="text-sm font-medium text-foreground/80 mb-2">
-          Proposed Tickets ({draftTickets.length})
-        </h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-medium text-foreground/80">
+            Proposed Capabilities{" "}
+            {draftTickets.length > 0 && (
+              <span className="text-foreground/50">({draftTickets.length})</span>
+            )}
+          </h3>
+          {draftTickets.length > 0 && (
+            <button
+              onClick={handleConfirmAll}
+              disabled={isConfirming || !projectId}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
+                         bg-[#EFD30B] text-[#1A1A19] rounded-md
+                         hover:bg-[#D4BC0A] transition-colors
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isConfirming ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <CheckCheck className="w-3.5 h-3.5" />
+              )}
+              {isConfirming ? "Confirming..." : "Confirm All"}
+            </button>
+          )}
+        </div>
         <div className="flex-1 overflow-y-auto space-y-3 pr-1">
           <AnimatePresence mode="popLayout">
             {draftTickets.map((ticket, index) => (
@@ -227,19 +324,20 @@ export function PrepStation() {
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, x: -100, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className="bg-foreground/5 border border-foreground/10 rounded-lg p-4"
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="bg-foreground/5 border border-foreground/10 rounded-lg p-4 
+                           hover:border-foreground/20 transition-colors"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-foreground text-sm truncate">
+                    <h4 className="font-medium text-foreground text-sm">
                       {ticket.title}
                     </h4>
                     <p className="text-xs text-foreground/60 mt-1 line-clamp-2">
                       {ticket.description}
                     </p>
                     {ticket.business_value && (
-                      <p className="text-xs text-primary/80 mt-2 line-clamp-1">
+                      <p className="text-xs text-[#EFD30B]/80 mt-2 line-clamp-1">
                         💡 {ticket.business_value}
                       </p>
                     )}
@@ -247,17 +345,19 @@ export function PrepStation() {
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       onClick={() => approveTicket(index)}
-                      className="p-2 rounded-md bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors"
-                      title="Approve ticket"
+                      className="p-2 rounded-md bg-green-500/10 text-green-500 
+                                 hover:bg-green-500/20 transition-colors"
+                      title="Approve capability"
                     >
                       <Check className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => removeDraftTicket(index)}
-                      className="p-2 rounded-md bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
-                      title="Discard ticket"
+                      className="p-2 rounded-md bg-red-500/10 text-red-500 
+                                 hover:bg-red-500/20 transition-colors"
+                      title="Discard capability"
                     >
-                      <X className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -266,9 +366,12 @@ export function PrepStation() {
           </AnimatePresence>
 
           {draftTickets.length === 0 && (
-            <p className="text-sm text-foreground/40 italic text-center py-8">
-              Tickets will appear here after synthesis...
-            </p>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <Sparkles className="w-8 h-8 text-foreground/20 mb-2" />
+              <p className="text-sm text-foreground/40">
+                Capabilities will appear here after generation
+              </p>
+            </div>
           )}
         </div>
       </div>

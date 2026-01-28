@@ -13,18 +13,20 @@ import { useHuddleStore, KanbanTicket, KanbanColumns } from "@/store/useHuddleSt
 interface ColumnConfig {
   id: keyof KanbanColumns;
   title: string;
+  headerColor: string;
 }
 
 const COLUMNS: ColumnConfig[] = [
-  { id: "todo", title: "Todo" },
-  { id: "inProgress", title: "In Progress" },
-  { id: "review", title: "Review" },
+  { id: "todo", title: "TO DO", headerColor: "text-[#EFD30B]" },
+  { id: "inProgress", title: "IN PROGRESS", headerColor: "text-foreground/60" },
+  { id: "review", title: "DONE", headerColor: "text-foreground/60" },
 ];
 
 // Map backend status to column ID
 const STATUS_TO_COLUMN: Record<string, keyof KanbanColumns> = {
   open: "todo",
   in_progress: "inProgress",
+  done: "review",
   review: "review",
 };
 
@@ -131,49 +133,36 @@ export function Stove({ projectId }: StoveProps) {
       case "bug":
         return "border-l-red-500";
       case "feature":
-        return "border-l-primary";
+        return "border-l-[#EFD30B]";
       case "task":
         return "border-l-blue-500";
       case "improvement":
         return "border-l-purple-500";
       default:
-        return "border-l-primary";
+        return "border-l-[#EFD30B]";
     }
   };
 
-  const getPriorityBadge = (priority?: string) => {
-    const colors: Record<string, string> = {
-      critical: "bg-red-500/20 text-red-400",
-      high: "bg-orange-500/20 text-orange-400",
-      medium: "bg-yellow-500/20 text-yellow-400",
-      low: "bg-green-500/20 text-green-400",
-    };
-    return colors[priority || "medium"] || colors.medium;
-  };
-
   return (
-    <div className="flex-1 h-full flex flex-col p-6 overflow-hidden">
-      {/* Header */}
-      <h2 className="text-xl font-semibold text-foreground mb-6">The Stove</h2>
-
+    <div className="h-full w-full flex flex-col p-6 overflow-hidden">
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-foreground/60">Loading tickets...</div>
         </div>
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="flex-1 flex gap-4 overflow-x-auto pb-4">
+          <div className="flex-1 flex gap-6 overflow-x-auto pb-4">
             {COLUMNS.map((column) => (
               <div
                 key={column.id}
-                className="flex-1 min-w-[280px] max-w-[350px] flex flex-col"
+                className="flex-1 min-w-[250px] flex flex-col"
               >
                 {/* Column Header */}
-                <div className="flex items-center justify-between mb-3 px-1">
-                  <h3 className="text-sm font-medium text-foreground/80">
+                <div className="flex items-center justify-between mb-4 px-1">
+                  <h3 className={`text-xs font-semibold tracking-wider ${column.headerColor}`}>
                     {column.title}
                   </h3>
-                  <span className="text-xs text-foreground/50 bg-foreground/10 px-2 py-0.5 rounded-full">
+                  <span className="text-xs text-foreground/40">
                     {columns[column.id].length}
                   </span>
                 </div>
@@ -185,12 +174,12 @@ export function Stove({ projectId }: StoveProps) {
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       className={`
-                        flex-1 rounded-lg p-2 space-y-2 overflow-y-auto
-                        transition-colors duration-200
+                        flex-1 rounded-lg p-2 space-y-3 overflow-y-auto
+                        transition-colors duration-200 min-h-[200px]
                         ${
                           snapshot.isDraggingOver
-                            ? "bg-primary/10 border-2 border-dashed border-primary/30"
-                            : "bg-foreground/5 border border-foreground/10"
+                            ? "bg-[#EFD30B]/5 border border-dashed border-[#EFD30B]/30"
+                            : "bg-transparent"
                         }
                       `}
                     >
@@ -206,55 +195,28 @@ export function Stove({ projectId }: StoveProps) {
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
                               className={`
-                                bg-[#2A2A28] rounded-lg p-3 border-l-4
+                                bg-[#2A2A28] rounded-lg p-4 border-l-4
                                 ${getBorderColor(ticket.type)}
                                 ${
                                   snapshot.isDragging
-                                    ? "shadow-lg shadow-black/30 rotate-2"
+                                    ? "shadow-xl shadow-black/40 rotate-1 scale-105"
                                     : ""
                                 }
-                                transition-shadow duration-200
+                                transition-all duration-200
                                 hover:bg-[#333331] cursor-grab active:cursor-grabbing
                               `}
                             >
-                              {/* Ticket Header */}
-                              <div className="flex items-start justify-between gap-2 mb-2">
-                                <h4 className="font-medium text-foreground text-sm leading-tight">
-                                  {ticket.title}
-                                </h4>
-                                {ticket.priority && (
-                                  <span
-                                    className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-medium flex-shrink-0 ${getPriorityBadge(
-                                      ticket.priority
-                                    )}`}
-                                  >
-                                    {ticket.priority}
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Description */}
-                              {ticket.description && (
-                                <p className="text-xs text-foreground/50 line-clamp-2 mb-2">
-                                  {ticket.description}
-                                </p>
-                              )}
+                              {/* Ticket Title */}
+                              <h4 className="font-bold text-foreground text-sm leading-tight mb-2">
+                                {ticket.title}
+                              </h4>
 
                               {/* Business Value */}
                               {ticket.business_value && (
-                                <div className="bg-primary/10 rounded px-2 py-1.5">
-                                  <p className="text-xs text-primary font-medium line-clamp-2">
-                                    💡 {ticket.business_value}
-                                  </p>
-                                </div>
+                                <p className="text-xs text-foreground/50 italic line-clamp-2">
+                                  {ticket.business_value}
+                                </p>
                               )}
-
-                              {/* Type Badge */}
-                              <div className="mt-2 flex items-center gap-2">
-                                <span className="text-[10px] text-foreground/40 uppercase tracking-wide">
-                                  {ticket.type || "feature"}
-                                </span>
-                              </div>
                             </div>
                           )}
                         </Draggable>
@@ -262,9 +224,9 @@ export function Stove({ projectId }: StoveProps) {
                       {provided.placeholder}
 
                       {/* Empty State */}
-                      {columns[column.id].length === 0 && (
-                        <div className="flex items-center justify-center h-24 text-foreground/30 text-sm">
-                          Drop tickets here
+                      {columns[column.id].length === 0 && !snapshot.isDraggingOver && (
+                        <div className="flex items-center justify-center h-24 text-foreground/20 text-xs uppercase tracking-wide">
+                          Drop here
                         </div>
                       )}
                     </div>
