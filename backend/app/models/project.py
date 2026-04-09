@@ -8,6 +8,7 @@ from app.models.base import Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.user import User
+    from app.models.ticket import Ticket
 
 
 class Project(Base, UUIDMixin, TimestampMixin):
@@ -33,6 +34,11 @@ class Project(Base, UUIDMixin, TimestampMixin):
     owner: Mapped["User"] = relationship(
         "User",
         back_populates="projects",
+    )
+    tickets: Mapped[list["Ticket"]] = relationship(
+        "Ticket",
+        back_populates="project",
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:

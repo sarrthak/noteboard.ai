@@ -9,6 +9,7 @@ import {
 } from "@hello-pangea/dnd";
 import { useSession } from "next-auth/react";
 import { useHuddleStore, KanbanTicket, KanbanColumns } from "@/store/useHuddleStore";
+import { API_BASE_URL } from "@/lib/api";
 
 interface ColumnConfig {
   id: keyof KanbanColumns;
@@ -47,7 +48,7 @@ export function Stove({ projectId }: StoveProps) {
       setIsLoading(true);
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/projects/${projectId}/tickets`,
+          `${API_BASE_URL}/projects/${projectId}/tickets`,
           {
             headers: {
               Authorization: `Bearer ${session.accessToken}`,
@@ -71,7 +72,7 @@ export function Stove({ projectId }: StoveProps) {
         data.forEach((ticket: any) => {
           const columnId = STATUS_TO_COLUMN[ticket.status] || "todo";
           const kanbanTicket: KanbanTicket = {
-            id: ticket.id,
+            id: String(ticket.id),
             title: ticket.title,
             description: ticket.description || "",
             business_value: ticket.business_value || "",

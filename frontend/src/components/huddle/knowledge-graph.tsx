@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import { Loader2, RefreshCw, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import { useHuddleStore, GraphData as StoreGraphData } from "@/store/useHuddleStore";
+import { API_BASE_URL } from "@/lib/api";
 
 // Dynamically import ForceGraph2D to avoid SSR issues
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
@@ -142,7 +143,7 @@ export function KnowledgeGraph({ projectId, onClose }: KnowledgeGraphProps) {
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/huddle/graph/${projectId}`,
+        `${API_BASE_URL}/huddle/graph/${projectId}`,
         {
           headers: {
             Authorization: `Bearer ${session.accessToken}`,
@@ -220,7 +221,7 @@ export function KnowledgeGraph({ projectId, onClose }: KnowledgeGraphProps) {
     const source = link.source as GraphNode;
     const target = link.target as GraphNode;
     
-    if (!source.x || !source.y || !target.x || !target.y) return;
+    if (source.x == null || source.y == null || target.x == null || target.y == null) return;
 
     const color = LINK_COLORS[link.type] || "#666";
     const isRelatedTo = link.type === "RELATED_TO";

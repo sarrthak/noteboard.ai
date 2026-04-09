@@ -38,9 +38,23 @@ services:
 
   # ==================== Frontend ====================
   frontend:
-    image: busybox
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
     container_name: noteboard_frontend
-    command: echo "Frontend placeholder - Next.js to be implemented"
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-noteboard_secret_key}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    depends_on:
+      - backend_api
     networks:
       - noteboard_network
 
@@ -53,7 +67,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-noteboard_secret}
       POSTGRES_DB: noteboard
     ports:
-      - "54320:5432"  # Using 54320 externally to avoid conflict with local postgres
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:

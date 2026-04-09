@@ -1,13 +1,40 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from loguru import logger
 
 from app.api.endpoints.auth import router as auth_router
 from app.api.endpoints.projects import router as projects_router
+from app.api.endpoints.huddle import router as huddle_router
+from app.api.endpoints.design import router as design_router
+from app.api.endpoints import tickets
 from app.core.config import settings
 from app.core.logging import setup_logging
+from app.services.redis import redis_service
+from app.services.knowledge_graph import knowledge_graph_service
 
 # Initialize logging before anything else
 setup_logging(level="INFO", json_logs=False)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan events."""
+    # Startup
+    try:
+        await redis_service.connect()
+    except Exception as e:
+        logger.warning(f"Redis connection failed (non-critical): {e}")
+    try:
+        await knowledge_graph_service.connect()
+    except Exception as e:
+        logger.warning(f"Neo4j connection failed (non-critical): {e}")
+    yield
+    # Shutdown
+    await knowledge_graph_service.disconnect()
+    await redis_service.disconnect()
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -16,6 +43,7 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # CORS middleware - allow all origins for development
@@ -30,6 +58,9 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(projects_router)
+app.include_router(huddle_router)
+app.include_router(design_router)
+app.include_router(tickets.router, prefix="/tickets", tags=["tickets"])
 
 
 @app.get("/")

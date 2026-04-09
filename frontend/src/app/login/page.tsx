@@ -26,8 +26,18 @@ function ConstellationBackground() {
       initStars();
     };
 
+    const MAX_STARS = 120;
+    const CONNECTION_DIST = 150;
+    const CELL_SIZE = CONNECTION_DIST;
+    const CONNECTION_INTERVAL = 3; // recompute connections every N frames
+    let frameCount = 0;
+    let cachedConnections: [number, number][] = [];
+
     const initStars = () => {
-      const numStars = Math.floor((canvas.width * canvas.height) / 15000);
+      const numStars = Math.min(
+        Math.floor((canvas.width * canvas.height) / 15000),
+        MAX_STARS
+      );
       stars = [];
       for (let i = 0; i < numStars; i++) {
         stars.push({
@@ -38,27 +48,75 @@ function ConstellationBackground() {
           radius: Math.random() * 1.5 + 0.5,
         });
       }
+      cachedConnections = [];
+    };
+
+    // Spatial grid for O(n) nearby-star lookups
+    const computeConnections = () => {
+      const cols = Math.ceil(canvas.width / CELL_SIZE) + 1;
+      const grid = new Map<number, number[]>();
+
+      for (let i = 0; i < stars.length; i++) {
+        const cx = Math.floor(stars[i].x / CELL_SIZE);
+        const cy = Math.floor(stars[i].y / CELL_SIZE);
+        const key = cy * cols + cx;
+        const bucket = grid.get(key);
+        if (bucket) bucket.push(i);
+        else grid.set(key, [i]);
+      }
+
+      const pairs: [number, number][] = [];
+      const distSq = CONNECTION_DIST * CONNECTION_DIST;
+
+      for (let i = 0; i < stars.length; i++) {
+        const cx = Math.floor(stars[i].x / CELL_SIZE);
+        const cy = Math.floor(stars[i].y / CELL_SIZE);
+
+        // Check own cell + 4 neighbours (right, below-left, below, below-right)
+        // to avoid duplicate pairs
+        const neighbours = [
+          cy * cols + cx,
+          cy * cols + (cx + 1),
+          (cy + 1) * cols + (cx - 1),
+          (cy + 1) * cols + cx,
+          (cy + 1) * cols + (cx + 1),
+        ];
+
+        for (const nk of neighbours) {
+          const bucket = grid.get(nk);
+          if (!bucket) continue;
+          for (const j of bucket) {
+            if (j <= i) continue;
+            const dx = stars[i].x - stars[j].x;
+            const dy = stars[i].y - stars[j].y;
+            if (dx * dx + dy * dy < distSq) {
+              pairs.push([i, j]);
+            }
+          }
+        }
+      }
+
+      cachedConnections = pairs;
     };
 
     const draw = () => {
       ctx.fillStyle = "#1A1A19";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw connections
+      // Recompute connections every N frames
+      if (frameCount % CONNECTION_INTERVAL === 0) {
+        computeConnections();
+      }
+      frameCount++;
+
+      // Draw cached connections
       ctx.strokeStyle = "rgba(249, 248, 244, 0.05)";
       ctx.lineWidth = 0.5;
-      for (let i = 0; i < stars.length; i++) {
-        for (let j = i + 1; j < stars.length; j++) {
-          const dx = stars[i].x - stars[j].x;
-          const dy = stars[i].y - stars[j].y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 150) {
-            ctx.beginPath();
-            ctx.moveTo(stars[i].x, stars[i].y);
-            ctx.lineTo(stars[j].x, stars[j].y);
-            ctx.stroke();
-          }
-        }
+      for (const [i, j] of cachedConnections) {
+        ctx.beginPath();
+        ctx.moveTo(stars[i].x, stars[i].y);
+        ctx.lineTo(stars[j].x, stars[j].y);
+        ctx.stroke();
       }
 
       // Draw and update stars
