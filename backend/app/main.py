@@ -8,6 +8,7 @@ from app.api.endpoints.auth import router as auth_router
 from app.api.endpoints.projects import router as projects_router
 from app.api.endpoints.huddle import router as huddle_router
 from app.api.endpoints.design import router as design_router
+from app.api.endpoints.dev import router as dev_router
 from app.api.endpoints import tickets
 from app.core.config import settings
 from app.core.logging import setup_logging
@@ -60,6 +61,7 @@ app.include_router(auth_router)
 app.include_router(projects_router)
 app.include_router(huddle_router)
 app.include_router(design_router)
+app.include_router(dev_router)
 app.include_router(tickets.router, prefix="/tickets", tags=["tickets"])
 
 
