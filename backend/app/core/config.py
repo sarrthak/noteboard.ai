@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # Weaviate
     WEAVIATE_URL: str = "http://weaviate:8080"
 
+    # OpenAI
+    OPENAI_API_KEY: str = ""
+
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         """Construct async PostgreSQL connection string."""
