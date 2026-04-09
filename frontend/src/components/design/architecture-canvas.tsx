@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   ReactFlow,
   Background,
@@ -74,10 +74,9 @@ export function ArchitectureCanvas({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   // Sync when parent passes new data
-  useMemo(() => {
+  useEffect(() => {
     setNodes(initialNodes);
     setEdges(initialEdges);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialNodes, initialEdges]);
 
   const onConnect: OnConnect = useCallback(
