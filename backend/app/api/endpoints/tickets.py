@@ -14,6 +14,32 @@ from app.schemas.ticket import TicketOut, TicketUpdate
 router = APIRouter()
 
 
+@router.get("/{ticket_id}", response_model=TicketOut)
+async def get_ticket(
+    ticket_id: UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Ticket:
+    """Get a single ticket by ID."""
+    result = await db.execute(
+        select(Ticket)
+        .join(Project, Ticket.project_id == Project.id)
+        .where(
+            Ticket.id == ticket_id,
+            Project.owner_id == current_user.id,
+        )
+    )
+    ticket = result.scalar_one_or_none()
+
+    if not ticket:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ticket not found",
+        )
+
+    return ticket
+
+
 @router.put("/{ticket_id}", response_model=TicketOut)
 async def update_ticket(
     ticket_id: UUID,
