@@ -129,6 +129,12 @@ class KnowledgeGraphService:
             relationship_type: Type of relationship (e.g., DEPENDS_ON, ENABLES, RELATED_TO)
             project_id: Project ID for scoping
         """
+        # Allowlist relationship types to prevent Cypher injection
+        allowed_types = {"DEPENDS_ON", "ENABLES", "EXTENDS", "RELATED_TO", "CONFLICTS_WITH"}
+        if relationship_type not in allowed_types:
+            logger.warning(f"Invalid relationship type '{relationship_type}', defaulting to RELATED_TO")
+            relationship_type = "RELATED_TO"
+
         query = f"""
         MATCH (s:Capability {{name: $source, project_id: $project_id}})
         MATCH (t:Capability {{name: $target, project_id: $project_id}})
@@ -335,6 +341,39 @@ class KnowledgeGraphService:
 
         logger.info(f"Created {created_count}/{len(relationships)} relationships")
         return created_count
+
+    async def get_capability_dependencies(self, ticket_id: str) -> list[dict]:
+        """
+        Get dependencies and relationships for a capability identified by its ticket ID.
+
+        Returns list of dicts: [{"name": ..., "relationship": ..., "direction": "depends_on"|"depended_by"}]
+        """
+        query = """
+        MATCH (c:Capability {ticket_id: $ticket_id})
+        OPTIONAL MATCH (c)-[r1:DEPENDS_ON|ENABLES|EXTENDS|RELATED_TO]->(t:Capability)
+        OPTIONAL MATCH (s:Capability)-[r2:DEPENDS_ON|ENABLES|EXTENDS|RELATED_TO]->(c)
+        RETURN
+            c.name AS capability_name,
+            collect(DISTINCT {name: t.name, relationship: type(r1), direction: 'depends_on'}) AS outgoing,
+            collect(DISTINCT {name: s.name, relationship: type(r2), direction: 'depended_by'}) AS incoming
+        """
+        try:
+            async with self.driver.session() as session:
+                result = await session.run(query, ticket_id=ticket_id)
+                record = await result.single()
+                if not record:
+                    return []
+                deps: list[dict] = []
+                for item in record["outgoing"]:
+                    if item.get("name"):
+                        deps.append(item)
+                for item in record["incoming"]:
+                    if item.get("name"):
+                        deps.append(item)
+                return deps
+        except Exception as e:
+            logger.warning(f"Failed to get capability dependencies: {e}")
+            return []
 
 
 # Singleton instance

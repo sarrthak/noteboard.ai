@@ -143,6 +143,9 @@ Be thorough in finding connections - a well-connected Knowledge Graph is the goa
             )
             
             content = response.choices[0].message.content
+            if not content:
+                logger.error("GPT returned empty content")
+                return {"tickets": []}
             result = json.loads(content)
             
             # Normalize the response to ensure consistent field names
@@ -277,6 +280,9 @@ Be thorough - a well-connected Knowledge Graph is the goal. Each capability shou
             )
             
             content = response.choices[0].message.content
+            if not content:
+                logger.error("GPT returned empty content for relationship analysis")
+                return []
             result = json.loads(content)
             relationships = result.get("relationships", [])
             
