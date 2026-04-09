@@ -38,9 +38,23 @@ services:
 
   # ==================== Frontend ====================
   frontend:
-    image: busybox
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
     container_name: noteboard_frontend
-    command: echo "Frontend placeholder - Next.js to be implemented"
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-noteboard_secret_key}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    depends_on:
+      - backend_api
     networks:
       - noteboard_network
 
