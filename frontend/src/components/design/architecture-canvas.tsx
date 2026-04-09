@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, type ReactNode } from "react";
 import {
   ReactFlow,
   Background,
@@ -29,7 +29,7 @@ import {
 
 /* ---------- Custom tech node ---------- */
 
-const shapeIcon: Record<string, React.ReactNode> = {
+const shapeIcon: Record<string, ReactNode> = {
   database: <Database className="w-4 h-4 text-[#EFD30B]" />,
   service: <Server className="w-4 h-4 text-[#EFD30B]" />,
   circle: <Circle className="w-4 h-4 text-[#EFD30B]" />,

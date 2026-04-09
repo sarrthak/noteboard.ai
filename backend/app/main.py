@@ -22,7 +22,10 @@ setup_logging(level="INFO", json_logs=False)
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    await redis_service.connect()
+    try:
+        await redis_service.connect()
+    except Exception as e:
+        logger.warning(f"Redis connection failed (non-critical): {e}")
     try:
         await knowledge_graph_service.connect()
     except Exception as e:

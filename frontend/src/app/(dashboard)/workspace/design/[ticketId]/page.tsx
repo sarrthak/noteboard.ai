@@ -7,6 +7,7 @@ import type { Node, Edge } from "@xyflow/react";
 import { Sparkles, Loader2, AlertCircle, Ticket } from "lucide-react";
 import { ArchitectureCanvas } from "@/components/design/architecture-canvas";
 import { parseMermaidToReactFlow } from "@/lib/mermaidParser";
+import { API_BASE_URL } from "@/lib/api";
 
 interface TicketDetails {
   id: string;
@@ -40,7 +41,7 @@ export default function DesignPage() {
         // We don't have a single-ticket GET, so we search via project tickets.
         // For now, fetch from the tickets endpoint directly.
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/tickets/${ticketId}`,
+          `${API_BASE_URL}/tickets/${ticketId}`,
           { headers: { Authorization: `Bearer ${session.accessToken}` } }
         );
         if (!res.ok) throw new Error("Could not load ticket");
@@ -63,7 +64,7 @@ export default function DesignPage() {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/design/generate_hld`,
+        `${API_BASE_URL}/design/generate_hld`,
         {
           method: "POST",
           headers: {

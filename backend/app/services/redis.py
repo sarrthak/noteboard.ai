@@ -28,8 +28,9 @@ class RedisService:
             await self._client.ping()
             logger.info("Connected to Redis")
         except Exception as e:
-            logger.error(f"Failed to connect to Redis: {e}")
-            raise
+            # Cache is best-effort; keep API available if Redis is down.
+            self._client = None
+            logger.warning(f"Redis unavailable, caching disabled (non-critical): {e}")
 
     async def disconnect(self) -> None:
         """Disconnect from Redis."""
@@ -46,7 +47,9 @@ class RedisService:
 
     async def get(self, key: str) -> Optional[str]:
         """Get a value from Redis."""
-        return await self.client.get(key)
+        if not self._client:
+            return None
+        return await self._client.get(key)
 
     async def set(
         self, 
@@ -55,11 +58,15 @@ class RedisService:
         expire: Optional[int] = None
     ) -> bool:
         """Set a value in Redis with optional expiration (in seconds)."""
-        return await self.client.set(key, value, ex=expire)
+        if not self._client:
+            return False
+        return await self._client.set(key, value, ex=expire)
 
     async def delete(self, key: str) -> int:
         """Delete a key from Redis."""
-        return await self.client.delete(key)
+        if not self._client:
+            return 0
+        return await self._client.delete(key)
 
     async def get_json(self, key: str) -> Optional[Any]:
         """Get a JSON value from Redis."""

@@ -2,7 +2,6 @@
 Design API endpoint for generating architecture diagrams.
 """
 
-import json
 from typing import Annotated
 from uuid import UUID
 

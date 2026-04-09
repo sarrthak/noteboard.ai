@@ -16,9 +16,8 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Use NEXT_PUBLIC_API_URL for local dev, INTERNAL_API_URL only when running in Docker
-          // The INTERNAL_API_URL (backend_api) only works inside Docker network
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          const { API_BASE_URL } = await import("@/lib/api");
+          const apiUrl = API_BASE_URL;
           
           // FastAPI OAuth2 expects form-data with 'username' field (not 'email')
           const formData = new URLSearchParams();
