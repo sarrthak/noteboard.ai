@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { API_BASE_URL } from "@/lib/api";
 
 export interface Project {
   id: string;
@@ -51,7 +52,7 @@ export const useProjectStore = create<ProjectState>()(
 
         try {
           const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/projects`,
+            `${API_BASE_URL}/projects`,
             {
               headers: {
                 Authorization: `Bearer ${accessToken}`,

@@ -6,20 +6,15 @@
  * Converts an audio blob to WAV format using the Web Audio API
  */
 export async function convertToWav(audioBlob: Blob): Promise<Blob> {
-  // Create an audio context
   const audioContext = new AudioContext();
 
-  // Decode the audio data
-  const arrayBuffer = await audioBlob.arrayBuffer();
-  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-  // Convert to WAV
-  const wavBlob = audioBufferToWav(audioBuffer);
-
-  // Close the audio context
-  await audioContext.close();
-
-  return wavBlob;
+  try {
+    const arrayBuffer = await audioBlob.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    return audioBufferToWav(audioBuffer);
+  } finally {
+    await audioContext.close().catch(() => {});
+  }
 }
 
 /**

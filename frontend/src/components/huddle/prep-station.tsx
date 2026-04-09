@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Check, Trash2, Loader2, Sparkles, CheckCheck } from "lucide-react";
 import { useHuddleStore } from "@/store/useHuddleStore";
 import { useSession } from "next-auth/react";
 import { createAudioFormData } from "@/lib/audio-utils";
+import { API_BASE_URL } from "@/lib/api";
 
 interface PrepStationProps {
   projectId?: string;
@@ -30,11 +31,26 @@ export function PrepStation({ projectId }: PrepStationProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+
+  // Cleanup on unmount: stop mic stream and recorder to prevent leaked tracks
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
 
   const handleStartRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: "audio/webm;codecs=opus",
       });
@@ -49,8 +65,11 @@ export function PrepStation({ projectId }: PrepStationProps) {
       };
 
       mediaRecorder.onstop = async () => {
-        // Stop all tracks
-        stream.getTracks().forEach((track) => track.stop());
+        // Stop all tracks via the ref
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+        }
 
         // Create blob from chunks
         const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
@@ -82,7 +101,7 @@ export function PrepStation({ projectId }: PrepStationProps) {
       const formData = await createAudioFormData(audioBlob, "file");
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/huddle/upload`,
+        `${API_BASE_URL}/huddle/upload`,
         {
           method: "POST",
           headers: {
@@ -115,7 +134,7 @@ export function PrepStation({ projectId }: PrepStationProps) {
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/huddle/synthesize`,
+        `${API_BASE_URL}/huddle/synthesize`,
         {
           method: "POST",
           headers: {
@@ -159,7 +178,7 @@ export function PrepStation({ projectId }: PrepStationProps) {
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/huddle/confirm`,
+        `${API_BASE_URL}/huddle/confirm`,
         {
           method: "POST",
           headers: {

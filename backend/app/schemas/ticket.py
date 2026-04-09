@@ -22,6 +22,14 @@ class TicketPriority(str, Enum):
     CRITICAL = "critical"
 
 
+class TicketType(str, Enum):
+    """Ticket type enumeration."""
+    FEATURE = "feature"
+    BUG = "bug"
+    TASK = "task"
+    IMPROVEMENT = "improvement"
+
+
 class TicketBase(BaseModel):
     """Base schema for Ticket."""
     title: str = Field(..., min_length=1, max_length=255)
@@ -41,7 +49,7 @@ class TicketUpdate(BaseModel):
     description: str | None = None
     business_value: str | None = None
     business_value_metric: str | None = None
-    type: str | None = None
+    type: TicketType | None = None
     status: TicketStatus | None = None
     priority: TicketPriority | None = None
     assignee_id: UUID | None = None

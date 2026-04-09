@@ -67,7 +67,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-noteboard_secret}
       POSTGRES_DB: noteboard
     ports:
-      - "54320:5432"  # Using 54320 externally to avoid conflict with local postgres
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:

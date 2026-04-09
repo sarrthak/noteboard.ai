@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useProjectStore } from "@/store/useProjectStore";
+import { API_BASE_URL } from "@/lib/api";
 import { Sparkles, Loader2, Ticket, ChevronRight } from "lucide-react";
 
 interface TicketItem {
@@ -36,7 +37,7 @@ export default function DesignIndexPage() {
       setIsLoading(true);
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/projects/${selectedProjectId}/tickets`,
+          `${API_BASE_URL}/projects/${selectedProjectId}/tickets`,
           { headers: { Authorization: `Bearer ${session.accessToken}` } }
         );
         if (!res.ok) throw new Error("Failed to fetch tickets");

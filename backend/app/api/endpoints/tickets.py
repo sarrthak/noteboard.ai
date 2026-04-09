@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.models.project import Project
-from app.models.ticket import Ticket
+from app.models.ticket import Ticket, TicketType
 from app.models.user import User
 from app.schemas.ticket import TicketOut, TicketUpdate
 
@@ -73,6 +73,9 @@ async def update_ticket(
     for field, value in update_data.items():
         if field == "business_value":
             ticket.business_value = value
+        elif field == "type" and value is not None:
+            # Explicitly map to model enum for safe assignment.
+            ticket.type = TicketType(value.value if hasattr(value, "value") else value)
         else:
             setattr(ticket, field, value)
 

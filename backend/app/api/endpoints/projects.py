@@ -219,6 +219,9 @@ async def update_project(
     
     await db.commit()
     await db.refresh(project)
+
+    # Invalidate user's cached projects
+    await redis_service.invalidate_user_projects(str(current_user.id))
     
     return project
 
@@ -258,3 +261,6 @@ async def delete_project(
     
     await db.delete(project)
     await db.commit()
+
+    # Invalidate user's cached projects
+    await redis_service.invalidate_user_projects(str(current_user.id))
