@@ -59,7 +59,10 @@ function parseLabelAndShape(raw: string): ParsedLabel {
   return { label: raw.trim(), shape: "service" };
 }
 
-/* ---------- main parser ---------- */
+/** Strip surrounding double or single quotes from a label. */
+function stripQuotes(label: string): string {
+  return label.replace(/^["']|["']$/g, "");
+}
 
 export function parseMermaidToReactFlow(mermaidCode: string): {
   nodes: Node[];
@@ -83,9 +86,19 @@ export function parseMermaidToReactFlow(mermaidCode: string): {
       )
   );
 
-  // Edge patterns — match A-->B, A-->|label|B, A -- text --> B, etc.
-  const edgeRegex =
-    /^(\w+)(?:\[.*?\]|\(\(.*?\)\)|\[\(.*?\)\]|\{.*?\}|\(.*?\)|\[\[.*?\]\]|>.*?\])?\s*(-+(?:\.-+)?(?:>|->|-->))\s*(?:\|([^|]*)\|)?\s*(\w+)(?:\[.*?\]|\(\(.*?\)\)|\[\(.*?\)\]|\{.*?\}|\(.*?\)|\[\[.*?\]\]|>.*?\])?/;
+  // Edge patterns — match:
+  //   A-->B, A-->|label|B, A -- label --> B, A -.- B, A -.->|label| B
+  const SHAPE = String.raw`(?:\[.*?\]|\(\(.*?\)\)|\[\(.*?\)\]|\{.*?\}|\(.*?\)|\[\[.*?\]\]|>.*?\])?`;
+  const edgeRegex = new RegExp(
+    `^(\\w+)${SHAPE}\\s*` +                       // source + optional shape
+    `(?:` +
+      `(-+(?:\\.-+)?(?:>|->|-->))\\s*` +           // arrow  (-->, -.->)
+      `(?:\\|([^|]*)\\|)?` +                        // optional |label|
+    `|` +
+      `--\\s+([\\w\\s/]+?)\\s+-->` +               // -- label -->
+    `)` +
+    `\\s*(\\w+)${SHAPE}`                            // target + optional shape
+  );
 
   // Node definition attached to an edge: e.g. A[API Gateway]
   const nodeDefRegex = /(\w+)(\[.*?\]|\(\(.*?\)\)|\[\(.*?\)\]|\{.*?\}|\(.*?\)|\[\[.*?\]\]|>.*?\])/g;
@@ -97,15 +110,15 @@ export function parseMermaidToReactFlow(mermaidCode: string): {
     while ((match = defRegex.exec(line)) !== null) {
       const id = match[1];
       const { label, shape } = parseLabelAndShape(match[2]);
-      nodeMap.set(id, { label, shape });
+      nodeMap.set(id, { label: stripQuotes(label), shape });
     }
 
     // Extract edge
     const edgeMatch = line.match(edgeRegex);
     if (edgeMatch) {
       const sourceId = edgeMatch[1];
-      const edgeLabel = edgeMatch[3] || undefined;
-      const targetId = edgeMatch[4];
+      const edgeLabel = (edgeMatch[3] || edgeMatch[4] || "").trim() || undefined;
+      const targetId = edgeMatch[5];
 
       // Ensure both nodes exist even if defined without shape
       if (!nodeMap.has(sourceId)) {

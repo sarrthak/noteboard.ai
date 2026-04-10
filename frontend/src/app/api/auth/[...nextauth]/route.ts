@@ -16,8 +16,8 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          const { API_BASE_URL } = await import("@/lib/api");
-          const apiUrl = API_BASE_URL;
+          const { SERVER_API_BASE_URL } = await import("@/lib/api");
+          const apiUrl = SERVER_API_BASE_URL;
           
           // FastAPI OAuth2 expects form-data with 'username' field (not 'email')
           const formData = new URLSearchParams();
