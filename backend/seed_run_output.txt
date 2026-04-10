@@ -1,0 +1,147 @@
+﻿python.exe : 2026-04-09 19:10:08.955 | INFO     | __main__:seed_data:235 - 
+Initializing Seed Script
+At line:1 char:87
++ ... ; $output = & c:/Users/sarth/OneDrive/Desktop/media/repos/noteboard/. ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2026-04-09 19:1...ing Seed Script 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+2026-04-09 19:10:11.685 | ERROR    | app.services.knowledge_graph:connect:33 - 
+Failed to connect to Neo4j: Failed to DNS resolve address neo4j:7687: [Errno 
+11001] getaddrinfo failed
+2026-04-09 19:10:11.686 | WARNING  | __main__:connect_knowledge_graph:29 - 
+Neo4j connection failed for 'bolt://neo4j:7687'. Retrying with 
+'bolt://localhost:7687'.
+2026-04-09 19:10:11.776 | INFO     | app.services.knowledge_graph:connect:31 - 
+Connected to Neo4j
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\backend\scripts\s
+eed_ecommerce.py", line 349, in <module>
+    asyncio.run(seed_data())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.
+2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.
+2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.11_3.11.
+2544.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 654, in 
+run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\backend\scripts\s
+eed_ecommerce.py", line 239, in seed_data
+    session_factory, db_engine = await create_db_session_factory()
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\backend\scripts\s
+eed_ecommerce.py", line 83, in create_db_session_factory
+    raise last_error
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\backend\scripts\s
+eed_ecommerce.py", line 62, in create_db_session_factory
+    async with engine.connect() as conn:
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\ext\asyncio\base.py", line 121, in __aenter__
+    return await self.start(is_ctxmanager=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\ext\asyncio\engine.py", line 275, in start
+    await greenlet_spawn(self.sync_engine.connect)
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\util\_concurrency_py3k.py", line 201, in greenlet_spawn
+    result = context.throw(*sys.exc_info())
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\engine\base.py", line 3285, in connect
+    return self._connection_cls(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\engine\base.py", line 143, in __init__
+    self._dbapi_connection = engine.raw_connection()
+                             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\engine\base.py", line 3309, in raw_connection
+    return self.pool.connect()
+           ^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\pool\base.py", line 447, in connect
+    return _ConnectionFairy._checkout(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\pool\base.py", line 1264, in _checkout
+    fairy = _ConnectionRecord.checkout(pool)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\pool\base.py", line 711, in checkout
+    rec = pool._do_get()
+          ^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\pool\impl.py", line 177, in _do_get
+    with util.safe_reraise():
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\pool\impl.py", line 175, in _do_get
+    return self._create_connection()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\pool\base.py", line 388, in _create_connection
+    return _ConnectionRecord(self)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\pool\base.py", line 673, in __init__
+    self.__connect()
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\pool\base.py", line 899, in __connect
+    with util.safe_reraise():
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\util\langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\pool\base.py", line 895, in __connect
+    self.dbapi_connection = connection = pool._invoke_creator(self)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\engine\create.py", line 661, in connect
+    return dialect.connect(*cargs, **cparams)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\engine\default.py", line 630, in connect
+    return self.loaded_dbapi.connect(*cargs, **cparams)  # type: 
+ignore[no-any-return]  # NOQA: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\dialects\postgresql\asyncpg.py", line 955, in connect
+    await_only(creator_fn(*arg, **kw)),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\util\_concurrency_py3k.py", line 132, in await_only
+    return current.parent.switch(awaitable)  # type: 
+ignore[no-any-return,attr-defined] # noqa: E501
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\sqlalchemy\util\_concurrency_py3k.py", line 196, in greenlet_spawn
+    value = await result
+            ^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\asyncpg\connection.py", line 2443, in connect
+    return await connect_utils._connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\asyncpg\connect_utils.py", line 1218, in _connect
+    conn = await _connect_addr(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\asyncpg\connect_utils.py", line 1054, in _connect_addr
+    return await __connect_addr(params, True, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarth\OneDrive\Desktop\media\repos\noteboard\.venv\Lib\site-pa
+ckages\asyncpg\connect_utils.py", line 1102, in __connect_addr
+    await connected
+asyncpg.exceptions.InvalidPasswordError: password authentication failed for 
+user "postgres"

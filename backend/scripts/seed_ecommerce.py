@@ -3,16 +3,86 @@ import uuid
 from loguru import logger
 from passlib.context import CryptContext
 
-from app.core.database import AsyncSessionLocal
+from app.core.config import settings
 from app.models.user import User
 from app.models.project import Project
 from app.models.ticket import Ticket, TicketType, TicketStatus, TicketPriority
 from app.services.knowledge_graph import KnowledgeGraphService
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.future import select
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 KNOWLEDGE_GRAPH_SERVICE = KnowledgeGraphService()
+
+
+async def connect_knowledge_graph() -> None:
+    """Connect to Neo4j with a localhost fallback for local shell execution."""
+    try:
+        await KNOWLEDGE_GRAPH_SERVICE.connect()
+    except Exception:
+        original_uri = settings.NEO4J_URI
+        fallback_uri = original_uri.replace("neo4j", "localhost")
+        if fallback_uri == original_uri:
+            raise
+        logger.warning(
+            "Neo4j connection failed for '{}'. Retrying with '{}'.",
+            original_uri,
+            fallback_uri,
+        )
+        settings.NEO4J_URI = fallback_uri
+        await KNOWLEDGE_GRAPH_SERVICE.connect()
+
+
+async def create_db_session_factory() -> tuple[async_sessionmaker[AsyncSession], any]:
+    """Create an async DB session factory with host/db fallback for local terminal runs."""
+    db_names = [settings.POSTGRES_DB, "noteboard", "noteboard_db"]
+    hosts = [settings.POSTGRES_SERVER, "localhost"]
+    ports = [settings.POSTGRES_PORT, 5433, 5432]
+    users = [settings.POSTGRES_USER, "noteboard", "postgres"]
+    passwords = [settings.POSTGRES_PASSWORD, "noteboard_secret", "noteboard", "postgres"]
+
+    # De-duplicate while preserving order.
+    db_names = list(dict.fromkeys(db_names))
+    hosts = list(dict.fromkeys(hosts))
+    ports = list(dict.fromkeys(ports))
+    users = list(dict.fromkeys(users))
+    passwords = list(dict.fromkeys(passwords))
+
+    last_error: Exception | None = None
+    for host in hosts:
+        for port in ports:
+            for db_name in db_names:
+                for user in users:
+                    for password in passwords:
+                        db_uri = (
+                            f"postgresql+asyncpg://{user}:{password}"
+                            f"@{host}:{port}/{db_name}"
+                        )
+                        engine = create_async_engine(db_uri, pool_pre_ping=True)
+                        try:
+                            async with engine.connect() as conn:
+                                await conn.execute(text("SELECT 1"))
+                            logger.info(
+                                "Connected to Postgres at '{}:{}' db='{}' user='{}'.",
+                                host, port, db_name, user,
+                            )
+                            session_factory = async_sessionmaker(
+                                bind=engine,
+                                class_=AsyncSession,
+                                expire_on_commit=False,
+                                autocommit=False,
+                                autoflush=False,
+                            )
+                            return session_factory, engine
+                        except Exception as exc:
+                            last_error = exc
+                            await engine.dispose()
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("Failed to initialize database session factory")
 
 # 15+ complex tickets representing a microservices architecture
 TICKETS_DATA = [
@@ -164,112 +234,116 @@ TICKETS_DATA = [
 
 async def seed_data():
     logger.info("Initializing Seed Script")
-    
+
     # 1. Start Graph Service
-    await KNOWLEDGE_GRAPH_SERVICE.connect()
+    await connect_knowledge_graph()
+    session_factory, db_engine = await create_db_session_factory()
 
-    async with AsyncSessionLocal() as session:
-        # 2. Ensure Demo User
-        user_email = "demo@noteboard.ai"
-        stmt = select(User).where(User.email == user_email)
-        result = await session.execute(stmt)
-        user = result.scalar_one_or_none()
-
-        if not user:
-            logger.info("Creating demo user...")
-            hashed_pw = pwd_context.hash("password123")
-            user = User(
-                id=uuid.uuid4(),
-                email=user_email,
-                full_name="Demo User",
-                hashed_password=hashed_pw,
-                is_active=True
-            )
-            session.add(user)
-            await session.commit()
-            await session.refresh(user)
-        else:
-            logger.info("Demo user already exists.")
-
-        # 3. Ensure Project
-        project_name = "E-Commerce Microservices Migration"
-        stmt = select(Project).where(Project.name == project_name)
-        result = await session.execute(stmt)
-        project = result.scalar_one_or_none()
-
-        if not project:
-            logger.info("Creating project...")
-            project = Project(
-                id=uuid.uuid4(),
-                name=project_name,
-                description="Migrating legacy monolithic app into a decoupled services fabric.",
-                owner_id=user.id
-            )
-            session.add(project)
-            await session.commit()
-            await session.refresh(project)
-        else:
-            logger.info("Project already exists. Deleting old tickets for clean slate...")
-            stmt = select(Ticket).where(Ticket.project_id == project.id)
+    try:
+        async with session_factory() as session:
+            # 2. Ensure Demo User
+            user_email = "demo@noteboard.ai"
+            stmt = select(User).where(User.email == user_email)
             result = await session.execute(stmt)
-            old_tickets = result.scalars().all()
-            for t in old_tickets:
-                await session.delete(t)
+            user = result.scalar_one_or_none()
+
+            if not user:
+                logger.info("Creating demo user...")
+                hashed_pw = pwd_context.hash("password123")
+                user = User(
+                    id=uuid.uuid4(),
+                    email=user_email,
+                    full_name="Demo User",
+                    hashed_password=hashed_pw,
+                    is_active=True
+                )
+                session.add(user)
+                await session.commit()
+                await session.refresh(user)
+            else:
+                logger.info("Demo user already exists.")
+
+            # 3. Ensure Project
+            project_name = "E-Commerce Microservices Migration"
+            stmt = select(Project).where(Project.name == project_name)
+            result = await session.execute(stmt)
+            project = result.scalar_one_or_none()
+
+            if not project:
+                logger.info("Creating project...")
+                project = Project(
+                    id=uuid.uuid4(),
+                    name=project_name,
+                    description="Migrating legacy monolithic app into a decoupled services fabric.",
+                    owner_id=user.id
+                )
+                session.add(project)
+                await session.commit()
+                await session.refresh(project)
+            else:
+                logger.info("Project already exists. Deleting old tickets for clean slate...")
+                stmt = select(Ticket).where(Ticket.project_id == project.id)
+                result = await session.execute(stmt)
+                old_tickets = result.scalars().all()
+                for t in old_tickets:
+                    await session.delete(t)
+                await session.commit()
+
+            # 4. Ensure Neo4j Project node exists
+            project_id_str = str(project.id)
+            await KNOWLEDGE_GRAPH_SERVICE.ensure_project_exists(project_id_str, project.name)
+
+            logger.info(f"Adding {len(TICKETS_DATA)} tickets...")
+            ticket_mapping = {}
+
+            # First Passthrough: Create capabilities and DB entities
+            for data in TICKETS_DATA:
+                t_id = uuid.uuid4()
+                # Set to OPEN so it mimics 'todo' for the frontend filter
+                ticket = Ticket(
+                    id=t_id,
+                    title=data["title"],
+                    description=data["description"],
+                    business_value=data["business_value"],
+                    type=data["type"],
+                    priority=data["priority"],
+                    status=TicketStatus.OPEN,
+                    project_id=project.id,
+                    creator_id=user.id,
+                )
+                session.add(ticket)
+                
+                # Form dict for knowledge graph service
+                kg_payload = {
+                    "id": str(ticket.id),
+                    "project_id": project_id_str,
+                    "title": ticket.title,
+                    "description": ticket.description,
+                    "business_value": ticket.business_value,
+                    "type": ticket.type.value
+                }
+                
+                await KNOWLEDGE_GRAPH_SERVICE.add_capability(kg_payload)
+                ticket_mapping[data["title"]] = ticket
+            
             await session.commit()
 
-        # 4. Ensure Neo4j Project node exists
-        project_id_str = str(project.id)
-        await KNOWLEDGE_GRAPH_SERVICE.ensure_project_exists(project_id_str, project.name)
+            # Second Passthrough: Create Graph Relationships
+            logger.info("Creating graph relationships...")
+            for data in TICKETS_DATA:
+                target_name = data["title"]
+                for source_name in data["dependencies"]:
+                    # the target DEPENDS_ON source
+                    await KNOWLEDGE_GRAPH_SERVICE.add_capability_relationship(
+                        source_capability=target_name,
+                        target_capability=source_name,
+                        relationship_type="DEPENDS_ON",
+                        project_id=project_id_str
+                    )
 
-        logger.info(f"Adding {len(TICKETS_DATA)} tickets...")
-        ticket_mapping = {}
-
-        # First Passthrough: Create capabilities and DB entities
-        for data in TICKETS_DATA:
-            t_id = uuid.uuid4()
-            # Set to OPEN so it mimics 'todo' for the frontend filter
-            ticket = Ticket(
-                id=t_id,
-                title=data["title"],
-                description=data["description"],
-                business_value=data["business_value"],
-                type=data["type"],
-                priority=data["priority"],
-                status=TicketStatus.OPEN,
-                project_id=project.id,
-                creator_id=user.id,
-            )
-            session.add(ticket)
-            
-            # Form dict for knowledge graph service
-            kg_payload = {
-                "id": str(ticket.id),
-                "project_id": project_id_str,
-                "title": ticket.title,
-                "description": ticket.description,
-                "business_value": ticket.business_value,
-                "type": ticket.type.value
-            }
-            
-            await KNOWLEDGE_GRAPH_SERVICE.add_capability(kg_payload)
-            ticket_mapping[data["title"]] = ticket
-        
-        await session.commit()
-
-        # Second Passthrough: Create Graph Relationships
-        logger.info("Creating graph relationships...")
-        for data in TICKETS_DATA:
-            target_name = data["title"]
-            for source_name in data["dependencies"]:
-                # the target DEPENDS_ON source
-                await KNOWLEDGE_GRAPH_SERVICE.add_capability_relationship(
-                    source_capability=target_name,
-                    target_capability=source_name,
-                    relationship_type="DEPENDS_ON",
-                    project_id=project_id_str
-                )
-
-    await KNOWLEDGE_GRAPH_SERVICE.disconnect()
+    finally:
+        await db_engine.dispose()
+        await KNOWLEDGE_GRAPH_SERVICE.disconnect()
     logger.info("Seeding complete!")
 
 if __name__ == "__main__":
