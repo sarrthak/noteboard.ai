@@ -135,6 +135,23 @@ services:
       timeout: 10s
       retries: 5
 
+  # ==================== Caddy Reverse Proxy (Optional) ====================
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend_api
+
 # ==================== Networks ====================
 networks:
   noteboard_network:

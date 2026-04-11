@@ -1,18 +1,8 @@
-.env
-.env.example
-
-# VS Code
-.vscode/launch.json
-.vscode/settings.json
-
+.*
 # Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
 .Python
 *.egg-info/
-.eggs/
 dist/
 build/
 
@@ -24,3 +14,4 @@ build/
 *.eot
 frontend/src/app/fonts/
 backend/scripts/seed_ecommerce.py
+!.github
