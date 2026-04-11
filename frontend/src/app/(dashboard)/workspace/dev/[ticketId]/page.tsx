@@ -25,7 +25,7 @@ const STEPS: { key: Step; label: string }[] = [
 
 function wsUrl(ticketId: string): string {
   const base = API_BASE_URL.replace(/^http/, "ws");
-  return `${base}/dev/ws/${ticketId}`;
+  return `${base.replace(/\/$/, "")}/dev/ws/${ticketId}`;
 }
 
 function stepIndex(s: Step): number {
