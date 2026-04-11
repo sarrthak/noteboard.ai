@@ -1,0 +1,55 @@
+name: Deploy to GCP Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Target Directory
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: mkdir -p /home/ubuntu/noteboard
+
+      - name: Copy repository contents via scp
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "backend/,frontend/,nginx/,docker-compose.yml,package.json"
+          target: "/home/ubuntu/noteboard"
+
+      - name: Write .env and deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          envs: PROD_ENV_FILE
+          script: |
+            cd /home/ubuntu/noteboard
+
+            # Write .env from secret
+            echo "$PROD_ENV_FILE" > .env
+
+            # Build and restart containers
+            docker compose down
+            docker compose up -d --build
+
+            # Run database migrations
+            docker compose exec -T backend_api alembic upgrade head
+
+            # Prune only dangling images (safe)
+            docker image prune -f
+        env:
+          PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
