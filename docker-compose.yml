@@ -5,11 +5,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: noteboard_api
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    restart: unless-stopped
+    expose:
+      - "8000"
     env_file:
       - .env
     depends_on:
@@ -26,8 +25,7 @@ services:
       dockerfile: Dockerfile
     container_name: noteboard_worker
     command: celery -A app.worker.celery_app worker --loglevel=info
-    volumes:
-      - ./backend:/app
+    restart: unless-stopped
     env_file:
       - .env
     depends_on:
@@ -45,8 +43,9 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
         NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
     container_name: noteboard_frontend
-    ports:
-      - "3000:3000"
+    restart: unless-stopped
+    expose:
+      - "3000"
     env_file:
       - .env
     environment:
@@ -63,12 +62,13 @@ services:
   postgres:
     image: postgres:alpine
     container_name: noteboard_postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-noteboard}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-noteboard_secret}
       POSTGRES_DB: noteboard
-    ports:
-      - "5433:5432"
+    expose:
+      - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -82,8 +82,9 @@ services:
   redis:
     image: redis:alpine
     container_name: noteboard_redis
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
+    expose:
+      - "6379"
     volumes:
       - redis_data:/data
     networks:
@@ -97,12 +98,13 @@ services:
   neo4j:
     image: neo4j:5.20
     container_name: noteboard_neo4j
+    restart: unless-stopped
     environment:
       NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4j_secret}
       NEO4J_PLUGINS: '["apoc"]'
-    ports:
-      - "7474:7474"  # HTTP Browser
-      - "7687:7687"  # Bolt Protocol
+    expose:
+      - "7474"
+      - "7687"
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
@@ -123,8 +125,8 @@ services:
       PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
       DEFAULT_VECTORIZER_MODULE: "none"
       CLUSTER_HOSTNAME: "node1"
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     volumes:
       - weaviate_data:/var/lib/weaviate
     networks:
@@ -145,12 +147,14 @@ services:
     environment:
       - DOMAIN_NAME=${DOMAIN_NAME}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./nginx/Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
       - frontend
       - backend_api
+    networks:
+      - noteboard_network
 
 # ==================== Networks ====================
 networks:
@@ -164,3 +168,5 @@ volumes:
   neo4j_data:
   neo4j_logs:
   weaviate_data:
+  caddy_data:
+  caddy_config:
