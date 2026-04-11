@@ -25,7 +25,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          fingerprint: 8c:f3:3c:61:5f:8e:18:08:b0:9c:dd:98:79:b5:8f:2e
+          fingerprint: SHA256:EGanSlbkNs2A/SbCkUGAFT2WDpDQBMbAnpOyoWQBppk
           script: mkdir -p ~/${{ env.DEPLOY_DIR }}
 
       - name: Copy repository contents via scp
@@ -34,7 +34,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          fingerprint: 8c:f3:3c:61:5f:8e:18:08:b0:9c:dd:98:79:b5:8f:2e
+          fingerprint: SHA256:EGanSlbkNs2A/SbCkUGAFT2WDpDQBMbAnpOyoWQBppk
           source: "backend/,frontend/,nginx/,docker-compose.yml,package.json"
           target: "~/${{ env.DEPLOY_DIR }}"
 
@@ -44,7 +44,7 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          fingerprint: 8c:f3:3c:61:5f:8e:18:08:b0:9c:dd:98:79:b5:8f:2e
+          fingerprint: SHA256:EGanSlbkNs2A/SbCkUGAFT2WDpDQBMbAnpOyoWQBppk
           envs: PROD_ENV_FILE,DEPLOY_DIR
           script_stop: true
           script: |
