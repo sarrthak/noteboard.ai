@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ChevronDown, FolderKanban, Check, Loader2 } from "lucide-react";
+import { ChevronDown, FolderKanban, Check, Loader2, Plus } from "lucide-react";
 import { useProjectStore } from "@/store/useProjectStore";
 
 export function ProjectSelector() {
@@ -132,6 +132,19 @@ export function ProjectSelector() {
                 </button>
               ))
             )}
+          </div>
+
+          <div className="border-t border-foreground/10 p-2">
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                router.push("/workspace/projects/new");
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-sm text-sm text-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            >
+              <Plus className="w-4 h-4 text-[#EFD30B]" />
+              New Project
+            </button>
           </div>
         </div>
       )}

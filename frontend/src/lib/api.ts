@@ -1,3 +1,5 @@
+import axios from "axios";
+
 /**
  * Base URL for backend API calls (client-side).
  * Falls back to localhost:8000 if NEXT_PUBLIC_API_URL is not configured.
@@ -12,3 +14,12 @@ export const API_BASE_URL =
  */
 export const SERVER_API_BASE_URL =
   process.env.INTERNAL_API_URL || API_BASE_URL;
+
+export function createAuthenticatedApi(accessToken: string) {
+  return axios.create({
+    baseURL: API_BASE_URL,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+}

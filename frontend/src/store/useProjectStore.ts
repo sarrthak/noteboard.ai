@@ -22,6 +22,7 @@ interface ProjectState {
   selectProject: (projectId: string | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setActiveProject: (project: Project) => void;
   getSelectedProject: () => Project | undefined;
   fetchProjects: (accessToken: string) => Promise<void>;
 }
@@ -41,6 +42,19 @@ export const useProjectStore = create<ProjectState>()(
       setLoading: (loading) => set({ isLoading: loading }),
 
       setError: (error) => set({ error }),
+
+      setActiveProject: (project) =>
+        set((state) => {
+          const existing = state.projects.find((p) => p.id === project.id);
+          const projects = existing
+            ? state.projects.map((p) => (p.id === project.id ? project : p))
+            : [project, ...state.projects];
+
+          return {
+            projects,
+            selectedProjectId: project.id,
+          };
+        }),
 
       getSelectedProject: () => {
         const { projects, selectedProjectId } = get();
