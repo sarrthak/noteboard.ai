@@ -12,6 +12,15 @@ from neo4j.exceptions import ServiceUnavailable
 from app.core.config import settings
 
 
+GRAPH_RELATIONSHIP_TYPES = [
+    "DEPENDS_ON",
+    "ENABLES",
+    "EXTENDS",
+    "RELATED_TO",
+    "CONFLICTS_WITH",
+]
+
+
 class KnowledgeGraphService:
     """Neo4j-based knowledge graph for project capabilities."""
 
@@ -130,7 +139,7 @@ class KnowledgeGraphService:
             project_id: Project ID for scoping
         """
         # Allowlist relationship types to prevent Cypher injection
-        allowed_types = {"DEPENDS_ON", "ENABLES", "EXTENDS", "RELATED_TO", "CONFLICTS_WITH"}
+        allowed_types = set(GRAPH_RELATIONSHIP_TYPES)
         if relationship_type not in allowed_types:
             logger.warning(f"Invalid relationship type '{relationship_type}', defaulting to RELATED_TO")
             relationship_type = "RELATED_TO"
@@ -167,7 +176,8 @@ class KnowledgeGraphService:
         # Query all capabilities and their dependency relationships
         query = """
         MATCH (p:Project {id: $project_id})<-[:BELONGS_TO]-(c:Capability)
-        OPTIONAL MATCH (c)-[r:DEPENDS_ON|ENABLES|EXTENDS|RELATED_TO]->(d:Capability)
+        OPTIONAL MATCH (c)-[r]->(d:Capability)
+        WHERE r IS NULL OR type(r) IN $relationship_types
         RETURN 
             c.name AS c_name,
             c.description AS c_description,
@@ -188,7 +198,11 @@ class KnowledgeGraphService:
 
         try:
             async with self.driver.session() as session:
-                result = await session.run(query, project_id=project_id)
+                result = await session.run(
+                    query,
+                    project_id=project_id,
+                    relationship_types=GRAPH_RELATIONSHIP_TYPES,
+                )
                 records = await result.data()
 
                 for record in records:
@@ -323,7 +337,7 @@ class KnowledgeGraphService:
             rel_type = rel.get("type", "RELATED_TO")
             
             # Validate relationship type
-            valid_types = ["DEPENDS_ON", "ENABLES", "EXTENDS", "RELATED_TO", "CONFLICTS_WITH"]
+            valid_types = GRAPH_RELATIONSHIP_TYPES
             if rel_type not in valid_types:
                 rel_type = "RELATED_TO"
 
@@ -350,8 +364,10 @@ class KnowledgeGraphService:
         """
         query = """
         MATCH (c:Capability {ticket_id: $ticket_id})
-        OPTIONAL MATCH (c)-[r1:DEPENDS_ON|ENABLES|EXTENDS|RELATED_TO]->(t:Capability)
-        OPTIONAL MATCH (s:Capability)-[r2:DEPENDS_ON|ENABLES|EXTENDS|RELATED_TO]->(c)
+        OPTIONAL MATCH (c)-[r1]->(t:Capability)
+        WHERE r1 IS NULL OR type(r1) IN $relationship_types
+        OPTIONAL MATCH (s:Capability)-[r2]->(c)
+        WHERE r2 IS NULL OR type(r2) IN $relationship_types
         RETURN
             c.name AS capability_name,
             collect(DISTINCT {name: t.name, relationship: type(r1), direction: 'depends_on'}) AS outgoing,
@@ -359,7 +375,11 @@ class KnowledgeGraphService:
         """
         try:
             async with self.driver.session() as session:
-                result = await session.run(query, ticket_id=ticket_id)
+                result = await session.run(
+                    query,
+                    ticket_id=ticket_id,
+                    relationship_types=GRAPH_RELATIONSHIP_TYPES,
+                )
                 record = await result.single()
                 if not record:
                     return []
