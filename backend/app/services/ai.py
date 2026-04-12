@@ -14,11 +14,50 @@ from openai import AsyncOpenAI
 from app.core.config import settings
 
 
+class AIConfigurationError(RuntimeError):
+    """Raised when AI features are used without required configuration."""
+
+
 class AIService:
     """Service for AI-powered features using OpenAI APIs."""
 
     def __init__(self):
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self._api_key = self._normalize_api_key(settings.OPENAI_API_KEY)
+        self.client: AsyncOpenAI | None = None
+
+        if self._api_key:
+            self.client = AsyncOpenAI(api_key=self._api_key)
+        else:
+            logger.warning(
+                "OPENAI_API_KEY is not configured. AI-powered features are disabled."
+            )
+
+    @staticmethod
+    def _normalize_api_key(raw_key: str | None) -> str:
+        """Normalize API keys loaded from environment or dotenv files."""
+        if not raw_key:
+            return ""
+
+        key = raw_key.strip()
+        if len(key) >= 2 and (
+            (key[0] == '"' and key[-1] == '"')
+            or (key[0] == "'" and key[-1] == "'")
+        ):
+            key = key[1:-1].strip()
+
+        return key
+
+    def get_client(self) -> AsyncOpenAI:
+        """Return an initialized OpenAI client or raise a config error."""
+        if not self._api_key:
+            raise AIConfigurationError(
+                "OPENAI_API_KEY is not configured on the backend service"
+            )
+
+        if self.client is None:
+            self.client = AsyncOpenAI(api_key=self._api_key)
+
+        return self.client
 
     async def transcribe_audio(self, file: UploadFile) -> str:
         """
@@ -30,6 +69,8 @@ class AIService:
         Returns:
             Transcribed text
         """
+        client = self.get_client()
+
         # Save file temporarily
         suffix = os.path.splitext(file.filename or ".wav")[1]
         
@@ -42,7 +83,7 @@ class AIService:
             logger.info(f"Transcribing audio file: {file.filename}")
             
             with open(tmp_path, "rb") as audio_file:
-                transcription = await self.client.audio.transcriptions.create(
+                transcription = await client.audio.transcriptions.create(
                     model="whisper-1",
                     file=audio_file,
                     response_format="text"
@@ -129,10 +170,12 @@ Please analyze this transcript and extract all actionable capabilities.
 Identify BOTH hard dependencies (depends_on) AND thematic relationships (related_to) between them.
 Be thorough in finding connections - a well-connected Knowledge Graph is the goal."""
 
+        client = self.get_client()
+
         try:
             logger.info("Synthesizing tickets from transcript")
             
-            response = await self.client.chat.completions.create(
+            response = await client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -266,10 +309,12 @@ Find relationships where:
 
 Be thorough - a well-connected Knowledge Graph is the goal. Each capability should ideally have at least one connection."""
 
+        client = self.get_client()
+
         try:
             logger.info(f"AI analyzing relationships for {len(new_capabilities)} new + {len(existing_capabilities)} existing capabilities")
             
-            response = await self.client.chat.completions.create(
+            response = await client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
                     {"role": "system", "content": system_prompt},

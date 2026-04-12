@@ -1,4 +1,4 @@
 # Services module
-from app.services.ai import ai_service, AIService
+from app.services.ai import AIConfigurationError, AIService, ai_service
 
-__all__ = ["ai_service", "AIService"]
+__all__ = ["ai_service", "AIService", "AIConfigurationError"]

@@ -15,7 +15,7 @@ from app.api.deps import get_current_user, get_db
 from app.models.project import Project
 from app.models.ticket import Ticket
 from app.models.user import User
-from app.services.ai import ai_service
+from app.services.ai import AIConfigurationError, ai_service
 from app.services.knowledge_graph import knowledge_graph_service
 
 router = APIRouter(prefix="/design", tags=["Design"])
@@ -118,7 +118,8 @@ async def generate_hld(
     )
 
     try:
-        response = await ai_service.client.chat.completions.create(
+        client = ai_service.get_client()
+        response = await client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt},
@@ -139,6 +140,13 @@ async def generate_hld(
             raise ValueError("Model returned empty diagram")
 
         return DesignResponse(mermaid_code=mermaid_code)
+
+    except AIConfigurationError as e:
+        logger.warning(f"HLD generation unavailable: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI design generation is unavailable because OPENAI_API_KEY is not configured",
+        )
 
     except Exception as e:
         logger.error(f"HLD generation failed: {e}")

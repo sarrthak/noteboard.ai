@@ -15,7 +15,7 @@ from app.api.deps import get_current_user, get_db
 from app.models.project import Project
 from app.models.ticket import Ticket, TicketType
 from app.models.user import User
-from app.services.ai import ai_service
+from app.services.ai import AIConfigurationError, ai_service
 from app.services.knowledge_graph import knowledge_graph_service
 
 router = APIRouter(prefix="/huddle", tags=["Huddle"])
@@ -130,6 +130,12 @@ async def upload_audio(
     try:
         text = await ai_service.transcribe_audio(file)
         return TranscriptResponse(text=text)
+    except AIConfigurationError as e:
+        logger.warning(f"Transcription unavailable: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI transcription is unavailable because OPENAI_API_KEY is not configured",
+        )
     except Exception as e:
         logger.error(f"Transcription failed: {e}")
         raise HTTPException(
@@ -190,6 +196,13 @@ async def synthesize_tickets(
         ]
         
         return SynthesizeResponse(tickets=tickets)
+
+    except AIConfigurationError as e:
+        logger.warning(f"Synthesis unavailable: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI synthesis is unavailable because OPENAI_API_KEY is not configured",
+        )
         
     except Exception as e:
         logger.error(f"Synthesis failed: {e}")
