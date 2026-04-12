@@ -58,6 +58,17 @@ jobs:
             docker compose down
             docker compose up -d --build
 
+            # Ensure target database exists before Alembic runs
+            DB_NAME=$(awk -F= '/^POSTGRES_DB=/{print $2}' .env | tail -n 1)
+            DB_USER=$(awk -F= '/^POSTGRES_USER=/{print $2}' .env | tail -n 1)
+            DB_NAME=${DB_NAME:-noteboard}
+            DB_USER=${DB_USER:-noteboard}
+
+            if ! docker compose exec -T postgres psql -U "$DB_USER" -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
+              echo "Creating missing database: $DB_NAME"
+              docker compose exec -T postgres psql -U "$DB_USER" -c "CREATE DATABASE \"$DB_NAME\";"
+            fi
+
             # Wait for backend to be healthy before migrating
             echo "Waiting for backend to start..."
             for i in $(seq 1 30); do

@@ -66,7 +66,7 @@ services:
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-noteboard}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-noteboard_secret}
-      POSTGRES_DB: noteboard
+      POSTGRES_DB: ${POSTGRES_DB:-noteboard}
     expose:
       - "5432"
     volumes:
