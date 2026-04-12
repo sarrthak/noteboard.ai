@@ -1,3 +1,5 @@
+name: noteboard
+
 services:
   # ==================== Backend Services ====================
   backend_api:
@@ -166,13 +168,21 @@ services:
 networks:
   noteboard_network:
     driver: bridge
+    name: noteboard_network
 
 # ==================== Volumes ====================
 volumes:
   postgres_data:
+    name: noteboard_postgres_data
   redis_data:
+    name: noteboard_redis_data
   neo4j_data:
+    name: noteboard_neo4j_data
   neo4j_logs:
+    name: noteboard_neo4j_logs
   weaviate_data:
+    name: noteboard_weaviate_data
   caddy_data:
+    name: noteboard_caddy_data
   caddy_config:
+    name: noteboard_caddy_config

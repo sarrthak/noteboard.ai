@@ -54,9 +54,8 @@ jobs:
             printf 'NEXTAUTH_URL=https://%s\n' "$DOMAIN_NAME" >> .env
             printf 'NEXT_PUBLIC_API_URL=https://%s/api\n' "$DOMAIN_NAME" >> .env
 
-            # Build and restart containers
-            docker compose down
-            docker compose up -d --build
+            # Build and restart containers in place (keeps named volumes intact)
+            docker compose up -d --build --remove-orphans
 
             # Ensure target database exists before Alembic runs
             DB_NAME=$(awk -F= '/^POSTGRES_DB=/{print $2}' .env | tail -n 1)
