@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "your-super-secret-key-change-in-production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    AUTH_DIAGNOSTIC_ENABLED: bool = False
+    AUTH_DIAGNOSTIC_KEY: Optional[str] = None
 
     # Neo4j
     NEO4J_URI: str = "bolt://neo4j:7687"
