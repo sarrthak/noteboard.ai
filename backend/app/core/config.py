@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import Optional
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,9 +23,12 @@ class Settings(BaseSettings):
     # PostgreSQL
     POSTGRES_USER: str = "noteboard"
     POSTGRES_PASSWORD: str = "noteboard_secret"
-    POSTGRES_SERVER: str = "postgres"
+    POSTGRES_SERVER: str = Field(
+        default="postgres",
+        validation_alias=AliasChoices("POSTGRES_SERVER", "POSTGRES_HOST"),
+    )
     POSTGRES_PORT: int = 5432
-    POSTGRES_DB: str = "noteboard_db"
+    POSTGRES_DB: str = "noteboard"
 
     # Redis
     REDIS_URL: str = "redis://redis:6379/0"
