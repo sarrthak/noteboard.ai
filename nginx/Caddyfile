@@ -1,7 +1,16 @@
 {$DOMAIN_NAME} {
     # Route all backend traffic (REST + WebSocket) under /api
-    handle /api/* {
-        uri strip_prefix /api
+    @openapi path *openapi.json
+    handle @openapi {
+        reverse_proxy backend_api:8000
+    }
+    
+    handle /services/*{
+        uri strip_prefix /services
+        reverse_proxy backend_api:8000
+    }
+
+    handle /dev/ws/* {
         reverse_proxy backend_api:8000
     }
 
