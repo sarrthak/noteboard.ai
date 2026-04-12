@@ -42,13 +42,14 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          envs: PROD_ENV_FILE,DEPLOY_DIR
+          envs: PROD_ENV_FILE,DEPLOY_DIR,DOMAIN_NAME
           script_stop: true
           script: |
             cd ~/$DEPLOY_DIR
 
             # Write .env from secret (printf preserves content exactly)
             printf '%s' "$PROD_ENV_FILE" > .env
+            printf '\nDOMAIN_NAME=%s\n' "$DOMAIN_NAME" >> .env
 
             # Build and restart containers
             docker compose down
@@ -74,3 +75,4 @@ jobs:
         env:
           PROD_ENV_FILE: ${{ secrets.PROD_ENV_FILE }}
           DEPLOY_DIR: ${{ env.DEPLOY_DIR }}
+          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
