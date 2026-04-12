@@ -49,7 +49,10 @@ jobs:
 
             # Write .env from secret (printf preserves content exactly)
             printf '%s' "$PROD_ENV_FILE" > .env
+            sed -i '/^DOMAIN_NAME=/d;/^NEXTAUTH_URL=/d;/^NEXT_PUBLIC_API_URL=/d' .env
             printf '\nDOMAIN_NAME=%s\n' "$DOMAIN_NAME" >> .env
+            printf 'NEXTAUTH_URL=https://%s\n' "$DOMAIN_NAME" >> .env
+            printf 'NEXT_PUBLIC_API_URL=https://%s/api\n' "$DOMAIN_NAME" >> .env
 
             # Build and restart containers
             docker compose down
