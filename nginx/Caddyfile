@@ -1,16 +1,13 @@
 {$DOMAIN_NAME} {
-    # Route all backend traffic (REST + WebSocket) under /api
-    @openapi path *openapi.json
-    handle @openapi {
-        reverse_proxy backend_api:8000
-    }
-    
-    handle /services/*{
-        uri strip_prefix /services
-        reverse_proxy backend_api:8000
+    # NextAuth endpoints must stay on Next.js, not FastAPI.
+    @nextauth path /api/auth /api/auth/signin* /api/auth/signout* /api/auth/callback/* /api/auth/csrf /api/auth/session /api/auth/providers /api/auth/error*
+    handle @nextauth {
+        reverse_proxy frontend:3000
     }
 
-    handle /dev/ws/* {
+    # Route all backend traffic (REST + WebSocket) under /api
+    handle /api/* {
+        uri strip_prefix /api
         reverse_proxy backend_api:8000
     }
 
