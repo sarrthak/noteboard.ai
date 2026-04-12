@@ -21,6 +21,7 @@ __pycache__/
 *.py[cod]
 dist/
 build/
+.scripts
 
 # Node
 node_modules/
