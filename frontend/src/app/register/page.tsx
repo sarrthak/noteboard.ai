@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, FormEvent, useEffect, useRef } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+import axios from "axios";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-// Constellation Background Component
 function ConstellationBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -29,7 +28,7 @@ function ConstellationBackground() {
     const MAX_STARS = 120;
     const CONNECTION_DIST = 150;
     const CELL_SIZE = CONNECTION_DIST;
-    const CONNECTION_INTERVAL = 3; // recompute connections every N frames
+    const CONNECTION_INTERVAL = 3;
     let frameCount = 0;
     let cachedConnections: [number, number][] = [];
 
@@ -51,7 +50,6 @@ function ConstellationBackground() {
       cachedConnections = [];
     };
 
-    // Spatial grid for O(n) nearby-star lookups
     const computeConnections = () => {
       const cols = Math.ceil(canvas.width / CELL_SIZE) + 1;
       const grid = new Map<number, number[]>();
@@ -72,8 +70,6 @@ function ConstellationBackground() {
         const cx = Math.floor(stars[i].x / CELL_SIZE);
         const cy = Math.floor(stars[i].y / CELL_SIZE);
 
-        // Check own cell + 4 neighbours (right, below-left, below, below-right)
-        // to avoid duplicate pairs
         const neighbours = [
           cy * cols + cx,
           cy * cols + (cx + 1),
@@ -103,13 +99,11 @@ function ConstellationBackground() {
       ctx.fillStyle = "#1A1A19";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Recompute connections every N frames
       if (frameCount % CONNECTION_INTERVAL === 0) {
         computeConnections();
       }
       frameCount++;
 
-      // Draw cached connections
       ctx.strokeStyle = "rgba(249, 248, 244, 0.05)";
       ctx.lineWidth = 0.5;
       for (const [i, j] of cachedConnections) {
@@ -119,7 +113,6 @@ function ConstellationBackground() {
         ctx.stroke();
       }
 
-      // Draw and update stars
       for (const star of stars) {
         ctx.beginPath();
         ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
@@ -155,17 +148,40 @@ function ConstellationBackground() {
   );
 }
 
-export default function LoginPage() {
+function parseRegisterError(err: unknown): string {
+  if (!axios.isAxiosError(err)) {
+    return "An unexpected error occurred. Please try again.";
+  }
+
+  const status = err.response?.status;
+  const detail = err.response?.data?.detail;
+
+  if (status === 400 || status === 422) {
+    if (typeof detail === "string") {
+      return detail;
+    }
+
+    if (Array.isArray(detail)) {
+      const messages = detail
+        .map((item: { msg?: string }) => item?.msg)
+        .filter(Boolean)
+        .join(" ");
+      return messages || "Please check your inputs and try again.";
+    }
+
+    return "Please check your inputs and try again.";
+  }
+
+  return "Could not create account right now. Please try again.";
+}
+
+export default function RegisterPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const successMessage =
-    searchParams.get("registered") === "1"
-      ? "Account created! Please sign in."
-      : "";
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -173,19 +189,21 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await signIn("credentials", {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (!baseUrl) {
+        setError("API URL is not configured. Please contact support.");
+        return;
+      }
+
+      await axios.post(`${baseUrl}/auth/register`, {
         email,
         password,
-        redirect: false,
+        full_name: fullName,
       });
 
-      if (result?.error) {
-        setError("Invalid email or password. Please try again.");
-      } else if (result?.ok) {
-        router.push("/workspace");
-      }
-    } catch {
-      setError("An unexpected error occurred. Please try again.");
+      router.push("/login?registered=1");
+    } catch (err) {
+      setError(parseRegisterError(err));
     } finally {
       setIsLoading(false);
     }
@@ -196,35 +214,46 @@ export default function LoginPage() {
       <ConstellationBackground />
 
       <div className="w-full max-w-md">
-        {/* Logo/Brand */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-foreground tracking-tight">
             noteboard<span className="text-primary">.ai</span>
           </h1>
           <p className="mt-2 text-muted-foreground text-sm">
-            Your intelligent project workspace
+            Build your mission control account
           </p>
         </div>
 
-        {/* Login Card */}
         <div className="border border-foreground/10 bg-background/80 backdrop-blur-sm p-8">
           <h2 className="text-xl font-semibold text-foreground mb-6">
-            Sign in to your account
+            Create your account
           </h2>
 
-          {successMessage && (
-            <div className="mb-4 p-3 border border-[#EFD30B]/50 bg-[#EFD30B]/10 text-[#EFD30B] text-sm">
-              {successMessage}
-            </div>
-          )}
-
           {error && (
-            <div className="mb-4 p-3 border border-destructive/50 bg-destructive/10 text-destructive text-sm">
+            <div className="mb-4 p-3 border border-red-500/50 bg-red-500/10 text-red-400 text-sm">
               {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label
+                htmlFor="full_name"
+                className="block text-sm font-medium text-foreground mb-2"
+              >
+                Full Name
+              </label>
+              <Input
+                id="full_name"
+                type="text"
+                placeholder="Jane Doe"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                autoComplete="name"
+                error={!!error}
+              />
+            </div>
+
             <div>
               <label
                 htmlFor="email"
@@ -258,35 +287,31 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                autoComplete="current-password"
+                autoComplete="new-password"
                 error={!!error}
               />
             </div>
 
             <Button
               type="submit"
-              className="w-full mt-6"
+              className="w-full mt-6 bg-[#EFD30B] text-[#1A1A19] hover:bg-[#EFD30B]/90"
               size="lg"
               isLoading={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign in"}
+              {isLoading ? "Creating account..." : "Create Account"}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <a
-                href="/register"
-                className="text-primary hover:underline font-medium"
-              >
-                Create one
+              Already have an account?{" "}
+              <a href="/login" className="text-primary hover:underline font-medium">
+                Sign in
               </a>
             </p>
           </div>
         </div>
 
-        {/* Footer */}
         <p className="mt-8 text-center text-xs text-muted-foreground">
           © 2026 noteboard.ai. All rights reserved.
         </p>
