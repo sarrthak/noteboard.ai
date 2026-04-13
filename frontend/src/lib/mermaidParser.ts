@@ -70,7 +70,6 @@ export function parseMermaidToReactFlow(mermaidCode: string): {
 } {
   const nodeMap = new Map<string, { label: string; shape: NodeShape }>();
   const edges: Edge[] = [];
-
   // Handle both real newlines and literal "\\n" sequences from model output.
   const normalizedMermaid = mermaidCode
     .replace(/\\r\\n/g, "\n")
