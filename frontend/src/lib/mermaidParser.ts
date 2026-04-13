@@ -71,8 +71,15 @@ export function parseMermaidToReactFlow(mermaidCode: string): {
   const nodeMap = new Map<string, { label: string; shape: NodeShape }>();
   const edges: Edge[] = [];
 
+  // Handle both real newlines and literal "\\n" sequences from model output.
+  const normalizedMermaid = mermaidCode
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
+
   // Normalise: collapse semi-colons into newlines
-  const lines = mermaidCode
+  const lines = normalizedMermaid
     .replace(/;/g, "\n")
     .split("\n")
     .map((l) => l.trim())
@@ -91,20 +98,24 @@ export function parseMermaidToReactFlow(mermaidCode: string): {
   console.log("Content lines:", contentLines);
   // Edge patterns — match:
   //   A-->B, A-->|label|B, A -- label --> B, A -.- B, A -.->|label| B
+  const NODE_ID = String.raw`[A-Za-z_][A-Za-z0-9_.:-]*`;
   const SHAPE = String.raw`(?:\[.*?\]|\(\(.*?\)\)|\[\(.*?\)\]|\{.*?\}|\(.*?\)|\[\[.*?\]\]|>.*?\])?`;
   const edgeRegex = new RegExp(
-    `^(\\w+)${SHAPE}\\s*` +                       // source + optional shape
+    `^(${NODE_ID})${SHAPE}\\s*` +                 // source + optional shape
     `(?:` +
       `(-+(?:\\.-+)?(?:>|->|-->))\\s*` +           // arrow  (-->, -.->)
       `(?:\\|([^|]*)\\|)?` +                        // optional |label|
     `|` +
       `--\\s+([\\w\\s/]+?)\\s+-->` +               // -- label -->
     `)` +
-    `\\s*(\\w+)${SHAPE}`                            // target + optional shape
+    `\\s*(${NODE_ID})${SHAPE}`                      // target + optional shape
   );
 
   // Node definition attached to an edge: e.g. A[API Gateway]
-  const nodeDefRegex = /(\w+)(\[.*?\]|\(\(.*?\)\)|\[\(.*?\)\]|\{.*?\}|\(.*?\)|\[\[.*?\]\]|>.*?\])/g;
+  const nodeDefRegex = new RegExp(
+    `(${NODE_ID})(\\[.*?\\]|\\(\\(.*?\\)\\)|\\[\\(.*?\\)\\]|\\{.*?\\}|\\(.*?\\)|\\[\\[.*?\\]\\]|>.*?\\])`,
+    "g"
+  );
 
   for (const line of contentLines) {
     // Extract any inline node definitions first
@@ -155,12 +166,20 @@ export function parseMermaidToReactFlow(mermaidCode: string): {
     incoming.get(e.target)?.add(e.source);
   }
 
+  console.log("Incoming edges:", incoming);
+  console.log("Outgoing edges:", outgoing);
+
   // Kahn's algorithm for layers
   const layers: string[][] = [];
   const placed = new Set<string>();
   let frontier = [...nodeMap.keys()].filter(
     (id) => (incoming.get(id)?.size ?? 0) === 0
   );
+
+  // Cyclic graphs may have no zero-incoming root; seed with all nodes.
+  if (frontier.length === 0 && nodeMap.size > 0) {
+    frontier = [...nodeMap.keys()];
+  }
 
   while (frontier.length > 0) {
     layers.push(frontier);
