@@ -23,6 +23,7 @@ export default function DesignPage() {
   const params = useParams<{ ticketId: string }>();
   const { data: session } = useSession();
   const ticketId = params.ticketId;
+  const canGenerate = Boolean(session?.accessToken && ticketId);
 
   const [nodes, setNodes] = useState<Node[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
@@ -56,7 +57,10 @@ export default function DesignPage() {
 
   /* ---- Generate HLD ---- */
   const handleGenerate = useCallback(async () => {
-    if (!session?.accessToken || !ticketId) return;
+    if (!session?.accessToken || !ticketId) {
+      setError("Unable to generate design: missing session or ticket context.");
+      return;
+    }
 
     setIsGenerating(true);
     setError(null);
@@ -176,7 +180,7 @@ export default function DesignPage() {
         <div className="px-5 py-4 space-y-3">
           <button
             onClick={handleGenerate}
-            disabled={isGenerating}
+            disabled={isGenerating || !canGenerate}
             className="w-full flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-background transition-colors hover:bg-primary-hover disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isGenerating ? (
@@ -191,6 +195,12 @@ export default function DesignPage() {
               </>
             )}
           </button>
+
+          {!canGenerate && !isGenerating && (
+            <p className="text-xs text-muted-foreground">
+              Sign in again and open this page from a ticket to enable Auto-Architect.
+            </p>
+          )}
 
           {error && (
             <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/20 p-3">
