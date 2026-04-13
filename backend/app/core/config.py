@@ -1,15 +1,27 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Optional
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+_CORE_DIR = Path(__file__).resolve().parent
+_APP_DIR = _CORE_DIR.parent
+_BACKEND_DIR = _APP_DIR.parent
+_REPO_ROOT = _BACKEND_DIR.parent
+
+ENV_FILES = (
+    _REPO_ROOT / ".env",
+    _BACKEND_DIR / ".env",
+)
+
+
 class Settings(BaseSettings):
     """Application settings managed via environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=ENV_FILES,
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",

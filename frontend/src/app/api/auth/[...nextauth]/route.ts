@@ -2,6 +2,59 @@ import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import axios from "axios";
 
+const SESSION_COOKIE_NAMES = [
+  "next-auth.session-token",
+  "__Secure-next-auth.session-token",
+];
+
+function isSessionTokenCookie(setCookie: string): boolean {
+  return SESSION_COOKIE_NAMES.some((name) => setCookie.startsWith(`${name}=`));
+}
+
+function isCookieDeletion(setCookie: string): boolean {
+  return /(?:^|;)\s*Max-Age=0(?:;|$)/i.test(setCookie);
+}
+
+function toSessionCookie(setCookie: string): string {
+  // Keep explicit sign-out/deletion cookies intact.
+  if (!isSessionTokenCookie(setCookie) || isCookieDeletion(setCookie)) {
+    return setCookie;
+  }
+
+  // Remove persistence directives so the cookie is browser-session scoped.
+  return setCookie
+    .replace(/;\s*Expires=[^;]*/gi, "")
+    .replace(/;\s*Max-Age=[^;]*/gi, "");
+}
+
+function makeSessionScopedCookies(response: Response): Response {
+  const getSetCookie = (response.headers as Headers & {
+    getSetCookie?: () => string[];
+  }).getSetCookie;
+
+  if (!getSetCookie) {
+    return response;
+  }
+
+  const cookies = getSetCookie.call(response.headers);
+  if (cookies.length === 0) {
+    return response;
+  }
+
+  const rewrittenCookies = cookies.map(toSessionCookie);
+  const headers = new Headers(response.headers);
+  headers.delete("set-cookie");
+  for (const cookie of rewrittenCookies) {
+    headers.append("set-cookie", cookie);
+  }
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -77,4 +130,12 @@ export const authOptions: NextAuthOptions = {
 
 const handler = NextAuth(authOptions);
 
-export { handler as GET, handler as POST };
+export async function GET(request: Request, context: { params: { nextauth: string[] } }) {
+  const response = await handler(request, context);
+  return makeSessionScopedCookies(response);
+}
+
+export async function POST(request: Request, context: { params: { nextauth: string[] } }) {
+  const response = await handler(request, context);
+  return makeSessionScopedCookies(response);
+}
