@@ -9,6 +9,8 @@ services:
     container_name: noteboard_api
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4"
     restart: unless-stopped
+    ports:
+      - "${BACKEND_BIND_IP:-127.0.0.1}:8000:8000"
     expose:
       - "8000"
     env_file:
@@ -52,6 +54,8 @@ services:
         NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
     container_name: noteboard_frontend
     restart: unless-stopped
+    ports:
+      - "${FRONTEND_BIND_IP:-127.0.0.1}:3000:3000"
     expose:
       - "3000"
     env_file:
