@@ -77,6 +77,8 @@ export function parseMermaidToReactFlow(mermaidCode: string): {
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
+    
+    console.log("Mermaid lines:", lines);
 
   // Skip directive lines (graph TD, flowchart LR, %% comments, etc.)
   const contentLines = lines.filter(
@@ -86,6 +88,7 @@ export function parseMermaidToReactFlow(mermaidCode: string): {
       )
   );
 
+  console.log("Content lines:", contentLines);
   // Edge patterns — match:
   //   A-->B, A-->|label|B, A -- label --> B, A -.- B, A -.->|label| B
   const SHAPE = String.raw`(?:\[.*?\]|\(\(.*?\)\)|\[\(.*?\)\]|\{.*?\}|\(.*?\)|\[\[.*?\]\]|>.*?\])?`;
@@ -198,6 +201,9 @@ export function parseMermaidToReactFlow(mermaidCode: string): {
       });
     }
   }
+
+  console.log("Parsed nodes:", nodes);
+  console.log("Parsed edges:", edges);
 
   return { nodes, edges };
 }
