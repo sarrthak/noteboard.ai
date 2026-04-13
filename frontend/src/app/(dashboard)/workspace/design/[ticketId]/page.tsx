@@ -91,6 +91,8 @@ export default function DesignPage() {
       setRawMermaid(mermaid_code);
 
       const { nodes: n, edges: e } = parseMermaidToReactFlow(mermaid_code);
+      console.log("Parsed nodes:", n);
+      console.log("Parsed edges:", e);
       setNodes(n);
       setEdges(e);
     } catch (err: unknown) {
