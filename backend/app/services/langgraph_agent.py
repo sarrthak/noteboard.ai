@@ -23,6 +23,17 @@ from app.services.redis import redis_service as redis_client
 from app.websockets.manager import dev_ws_manager
 
 
+OPENROUTER_VENDOR_KEYS = {
+    "deepseek",
+    "anthropic",
+    "gemini",
+    "zai",
+    "qwen",
+    "saravam",
+    "openrouter",
+}
+
+
 class AgentState(TypedDict):
     ticket_id: str
     title: str
@@ -45,17 +56,19 @@ def _normalize_api_key(raw_key: str | None) -> str:
     return key
 
 
-def _resolve_provider(vendor: str | None) -> tuple[str, str, str | None, str]:
+def _resolve_provider(vendor: str | None, model: str | None) -> tuple[str, str, str | None, str]:
     selected_vendor = (vendor or "openai").strip().lower()
+    selected_model = (model or "").strip()
+    use_openrouter = selected_vendor in OPENROUTER_VENDOR_KEYS or "/" in selected_model
 
-    if selected_vendor == "openrouter":
+    if use_openrouter:
         api_key = _normalize_api_key(os.getenv("OPENROUTER_API_KEY", ""))
         if not api_key:
             raise RuntimeError("OPENROUTER_API_KEY is not configured on the backend service")
 
         base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").strip()
-        default_model = os.getenv("DEV_AGENT_OPENROUTER_MODEL", "anthropic/claude-3.5-sonnet")
-        return selected_vendor, api_key, base_url or "https://openrouter.ai/api/v1", default_model
+        default_model = os.getenv("DEV_AGENT_OPENROUTER_MODEL", "openai/gpt-4o")
+        return "openrouter", api_key, base_url or "https://openrouter.ai/api/v1", default_model
 
     selected_vendor = "openai"
     api_key = _normalize_api_key(settings.OPENAI_API_KEY)
@@ -73,7 +86,7 @@ async def _chat_completion(
     vendor: str,
     model: str,
 ) -> str:
-    _, api_key, base_url, default_model = _resolve_provider(vendor)
+    _, api_key, base_url, default_model = _resolve_provider(vendor, model)
     selected_model = (model or "").strip() or default_model
     client = AsyncOpenAI(api_key=api_key, base_url=base_url) if base_url else AsyncOpenAI(api_key=api_key)
 

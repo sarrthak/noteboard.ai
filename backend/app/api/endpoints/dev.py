@@ -1,6 +1,8 @@
 from typing import Annotated
 from uuid import UUID
+import os
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
@@ -16,6 +18,27 @@ from app.services.redis import redis_service
 from app.websockets.manager import dev_ws_manager
 
 router = APIRouter(prefix="/dev", tags=["dev"])
+
+
+TARGET_VENDOR_LABELS: dict[str, str] = {
+    "deepseek": "DeepSeek",
+    "anthropic": "Anthropic",
+    "openai": "OpenAI",
+    "gemini": "Google",
+    "zai": "ZAI",
+    "qwen": "Qwen",
+    "saravam": "Saravam",
+}
+
+TARGET_VENDOR_PREFIXES: dict[str, tuple[str, ...]] = {
+    "deepseek": ("deepseek/",),
+    "anthropic": ("anthropic/",),
+    "openai": ("openai/",),
+    "gemini": ("google/",),
+    "zai": ("z-ai/", "zai/"),
+    "qwen": ("qwen/",),
+    "saravam": ("saravam/", "sarvam/", "sarvam-ai/"),
+}
 
 
 class ApproveCheckpointRequest(BaseModel):
@@ -37,8 +60,9 @@ class StartBuildRequest(BaseModel):
     @classmethod
     def validate_vendor(cls, v: str) -> str:
         vendor = v.strip().lower()
-        if vendor not in ("openai", "openrouter"):
-            raise ValueError("vendor must be one of: openai, openrouter")
+        if vendor not in TARGET_VENDOR_LABELS:
+            allowed = ", ".join(TARGET_VENDOR_LABELS.keys())
+            raise ValueError(f"vendor must be one of: {allowed}")
         return vendor
 
     @field_validator("model")
@@ -48,6 +72,90 @@ class StartBuildRequest(BaseModel):
         if not model:
             raise ValueError("model is required")
         return model
+
+
+def _classify_vendor(model_id: str) -> str | None:
+    normalized_id = model_id.strip().lower()
+    for vendor_key, prefixes in TARGET_VENDOR_PREFIXES.items():
+        if any(normalized_id.startswith(prefix) for prefix in prefixes):
+            return vendor_key
+    return None
+
+
+def _build_models_payload(rows: list[dict]) -> dict:
+    grouped: dict[str, dict[str, dict[str, str]]] = {
+        vendor: {} for vendor in TARGET_VENDOR_LABELS
+    }
+
+    for row in rows:
+        model_id = str(row.get("id", "")).strip()
+        if not model_id:
+            continue
+
+        vendor_key = _classify_vendor(model_id)
+        if not vendor_key:
+            continue
+
+        model_name = str(row.get("name") or model_id)
+        grouped[vendor_key][model_id] = {
+            "id": model_id,
+            "name": model_name,
+        }
+
+    vendors_payload = []
+    for vendor_key, label in TARGET_VENDOR_LABELS.items():
+        models = sorted(
+            grouped[vendor_key].values(),
+            key=lambda item: item["name"].lower(),
+        )
+        vendors_payload.append(
+            {
+                "key": vendor_key,
+                "label": label,
+                "models": models,
+            }
+        )
+
+    return {"vendors": vendors_payload}
+
+
+@router.get("/models")
+async def list_dev_models(
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    _ = current_user
+
+    cache_key = "dev:model_catalog:openrouter:v1"
+    cached_payload = await redis_service.get_json(cache_key)
+    if cached_payload:
+        return cached_payload
+
+    headers: dict[str, str] = {}
+    openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
+    if openrouter_key:
+        headers["Authorization"] = f"Bearer {openrouter_key}"
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.get(
+                "https://openrouter.ai/api/v1/models",
+                headers=headers,
+            )
+            response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to fetch model catalog from OpenRouter",
+        ) from exc
+
+    payload = response.json() if response.content else {}
+    rows = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        rows = []
+
+    models_payload = _build_models_payload(rows)
+    await redis_service.set_json(cache_key, models_payload, expire=600)
+    return models_payload
 
 
 @router.websocket("/ws/{ticket_id}")
