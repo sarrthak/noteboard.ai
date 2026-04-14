@@ -23,8 +23,8 @@ const priorityTag: Record<string, { label: string; color: string }> = {
 };
 
 const statusTag: Record<string, string> = {
-  todo: "QUEUED",
-  "in-progress": "IN-PROG",
+  open: "QUEUED",
+  in_progress: "IN-PROG",
 };
 
 export default function DevIndexPage() {
@@ -48,7 +48,7 @@ export default function DevIndexPage() {
         if (!res.ok) throw new Error("Failed to fetch tickets");
         const data: TicketItem[] = await res.json();
         setTickets(
-          data.filter((t) => t.status === "todo" || t.status === "in-progress")
+          data.filter((t) => t.status === "open" || t.status === "in_progress")
         );
       } catch {
         setTickets([]);
