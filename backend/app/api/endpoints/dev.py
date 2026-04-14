@@ -29,6 +29,27 @@ class ApproveCheckpointRequest(BaseModel):
         return v
 
 
+class StartBuildRequest(BaseModel):
+    vendor: str = "openai"
+    model: str = "gpt-4o"
+
+    @field_validator("vendor")
+    @classmethod
+    def validate_vendor(cls, v: str) -> str:
+        vendor = v.strip().lower()
+        if vendor not in ("openai", "openrouter"):
+            raise ValueError("vendor must be one of: openai, openrouter")
+        return vendor
+
+    @field_validator("model")
+    @classmethod
+    def validate_model(cls, v: str) -> str:
+        model = v.strip()
+        if not model:
+            raise ValueError("model is required")
+        return model
+
+
 @router.websocket("/ws/{ticket_id}")
 async def dev_websocket(websocket: WebSocket, ticket_id: str):
     await dev_ws_manager.connect(websocket, ticket_id)
@@ -79,17 +100,33 @@ async def _get_owned_ticket(
 async def start_build(
     ticket_id: str,
     background_tasks: BackgroundTasks,
+    body: StartBuildRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     owned_ticket = await _get_owned_ticket(ticket_id, current_user.id, db)
-    background_tasks.add_task(_run_dev_agent_task, str(owned_ticket.id))
-    return {"status": "started", "ticket_id": str(owned_ticket.id)}
+    background_tasks.add_task(
+        _run_dev_agent_task,
+        str(owned_ticket.id),
+        body.vendor,
+        body.model,
+    )
+    return {
+        "status": "started",
+        "ticket_id": str(owned_ticket.id),
+        "vendor": body.vendor,
+        "model": body.model,
+    }
 
 
-async def _run_dev_agent_task(ticket_id: str) -> None:
+async def _run_dev_agent_task(ticket_id: str, vendor: str, model: str) -> None:
     async with AsyncSessionLocal() as db_session:
-        await run_dev_agent(ticket_id=ticket_id, db_session=db_session)
+        await run_dev_agent(
+            ticket_id=ticket_id,
+            db_session=db_session,
+            vendor=vendor,
+            model=model,
+        )
 
 
 @router.post("/approve_checkpoint/{ticket_id}")

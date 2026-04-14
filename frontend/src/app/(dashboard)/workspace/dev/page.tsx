@@ -62,9 +62,7 @@ export default function DevIndexPage() {
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
-      {/* ── Header ──────────────────────────────────────── */}
       <div className="relative">
-        {/* Decorative top rule */}
         <div className="flex items-center gap-3 mb-4">
           <div className="h-px flex-1 bg-gradient-to-r from-primary/60 via-primary/20 to-transparent" />
           <span className="font-mono text-[10px] tracking-[0.3em] text-primary/50 uppercase">
@@ -79,8 +77,6 @@ export default function DevIndexPage() {
         <p className="font-mono text-xs tracking-wide text-muted-foreground mt-2 max-w-md">
           Select an approved capability to initiate Agentic Build.
         </p>
-
-        {/* Status bar */}
         <div className="flex items-center gap-4 mt-4 font-mono text-[10px] tracking-wider text-muted-foreground/60 uppercase">
           <span className="flex items-center gap-1.5">
             <span className="relative flex h-1.5 w-1.5">
@@ -100,8 +96,6 @@ export default function DevIndexPage() {
           </span>
         </div>
       </div>
-
-      {/* ── Content ─────────────────────────────────────── */}
       {!selectedProjectId ? (
         <EmptyState message="Link a project from the sidebar to load targets." />
       ) : isLoading ? (
@@ -204,8 +198,6 @@ export default function DevIndexPage() {
           })}
         </div>
       )}
-
-      {/* ── Footer rule ────────────────────────────────── */}
       <div className="flex items-center gap-3 pt-2">
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-foreground/5 to-transparent" />
         <span className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/20 uppercase">
@@ -221,7 +213,6 @@ function EmptyState({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-24 gap-4">
       <div className="relative w-12 h-12 flex items-center justify-center">
-        {/* Crosshair */}
         <div className="absolute inset-0 border border-dashed border-muted-foreground/15 rounded-full" />
         <div className="absolute w-full h-px bg-muted-foreground/10" />
         <div className="absolute h-full w-px bg-muted-foreground/10" />

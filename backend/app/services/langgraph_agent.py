@@ -4,9 +4,12 @@ LangGraph-powered Dev Agent orchestration service.
 
 import asyncio
 import os
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import TypedDict
 from uuid import UUID
 
+import aiofiles
 from langgraph.graph import StateGraph, START, END
 from loguru import logger
 from openai import AsyncOpenAI
@@ -25,12 +28,11 @@ class AgentState(TypedDict):
     title: str
     description: str
     dependencies: list[str]
+    vendor: str
+    model: str
     plan: str
     code: str
     tests_passed: bool
-
-
-_llm_client: AsyncOpenAI | None = None
 
 
 def _normalize_api_key(raw_key: str | None) -> str:
@@ -43,32 +45,40 @@ def _normalize_api_key(raw_key: str | None) -> str:
     return key
 
 
-def _get_llm_client() -> AsyncOpenAI:
-    global _llm_client
+def _resolve_provider(vendor: str | None) -> tuple[str, str, str | None, str]:
+    selected_vendor = (vendor or "openai").strip().lower()
 
-    if _llm_client is not None:
-        return _llm_client
+    if selected_vendor == "openrouter":
+        api_key = _normalize_api_key(os.getenv("OPENROUTER_API_KEY", ""))
+        if not api_key:
+            raise RuntimeError("OPENROUTER_API_KEY is not configured on the backend service")
 
+        base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").strip()
+        default_model = os.getenv("DEV_AGENT_OPENROUTER_MODEL", "anthropic/claude-3.5-sonnet")
+        return selected_vendor, api_key, base_url or "https://openrouter.ai/api/v1", default_model
+
+    selected_vendor = "openai"
     api_key = _normalize_api_key(settings.OPENAI_API_KEY)
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is not configured on the backend service")
 
-    # Optional seam for OpenRouter or other OpenAI-compatible providers.
-    base_url = os.getenv("DEV_AGENT_OPENAI_BASE_URL", "").strip()
-    if base_url:
-        _llm_client = AsyncOpenAI(api_key=api_key, base_url=base_url)
-    else:
-        _llm_client = AsyncOpenAI(api_key=api_key)
-
-    return _llm_client
+    base_url = os.getenv("DEV_AGENT_OPENAI_BASE_URL", "").strip() or None
+    default_model = os.getenv("DEV_AGENT_MODEL", "gpt-4o")
+    return selected_vendor, api_key, base_url, default_model
 
 
-async def _chat_completion(system_prompt: str, user_prompt: str) -> str:
-    client = _get_llm_client()
-    model = os.getenv("DEV_AGENT_MODEL", "gpt-4o")
+async def _chat_completion(
+    system_prompt: str,
+    user_prompt: str,
+    vendor: str,
+    model: str,
+) -> str:
+    _, api_key, base_url, default_model = _resolve_provider(vendor)
+    selected_model = (model or "").strip() or default_model
+    client = AsyncOpenAI(api_key=api_key, base_url=base_url) if base_url else AsyncOpenAI(api_key=api_key)
 
     response = await client.chat.completions.create(
-        model=model,
+        model=selected_model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
@@ -93,7 +103,12 @@ async def planner_node(state: AgentState) -> dict[str, str]:
         f"Dependencies: {dependencies}"
     )
 
-    llm_response = await _chat_completion(system_prompt, user_prompt)
+    llm_response = await _chat_completion(
+        system_prompt,
+        user_prompt,
+        state["vendor"],
+        state["model"],
+    )
     return {"plan": llm_response}
 
 
@@ -108,7 +123,12 @@ async def drafter_node(state: AgentState) -> dict[str, str]:
         f"Plan:\n{state['plan']}"
     )
 
-    llm_response = await _chat_completion(system_prompt, user_prompt)
+    llm_response = await _chat_completion(
+        system_prompt,
+        user_prompt,
+        state["vendor"],
+        state["model"],
+    )
     return {"code": llm_response}
 
 
@@ -148,8 +168,54 @@ async def _wait_for_approval(checkpoint_key: str, expected: str) -> None:
         await asyncio.sleep(0.5)
 
 
-async def run_dev_agent(ticket_id: str, db_session: AsyncSession) -> None:
+def _build_markdown_report(state: AgentState, vendor: str, model: str) -> str:
+    dependencies_md = "\n".join(f"- {dependency}" for dependency in state["dependencies"]) or "- none"
+    verification = "passed" if state["tests_passed"] else "failed"
+    timestamp = datetime.now(timezone.utc).isoformat()
+
+    return (
+        f"# Dev Agent Run\n\n"
+        f"- ticket_id: {state['ticket_id']}\n"
+        f"- vendor: {vendor}\n"
+        f"- model: {model}\n"
+        f"- timestamp_utc: {timestamp}\n\n"
+        f"## Capability\n\n"
+        f"- title: {state['title']}\n"
+        f"- description: {state['description'] or 'n/a'}\n\n"
+        f"## Dependencies\n\n"
+        f"{dependencies_md}\n\n"
+        f"## Plan\n\n"
+        f"{state['plan']}\n\n"
+        f"## Draft Code\n\n"
+        f"```\n{state['code']}\n```\n\n"
+        f"## Verification\n\n"
+        f"- tests: {verification}\n"
+    )
+
+
+async def _write_markdown_report(state: AgentState, vendor: str, model: str) -> Path:
+    report_dir = Path(__file__).resolve().parents[2] / "artifacts" / "dev_runs"
+    report_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    report_path = report_dir / f"{state['ticket_id']}_{timestamp}.md"
+    report_content = _build_markdown_report(state, vendor, model)
+
+    async with aiofiles.open(report_path, "w", encoding="utf-8") as report_file:
+        await report_file.write(report_content)
+
+    return report_path
+
+
+async def run_dev_agent(
+    ticket_id: str,
+    db_session: AsyncSession,
+    vendor: str = "openai",
+    model: str = "gpt-4o",
+) -> None:
     checkpoint_key = f"checkpoint:{ticket_id}"
+    selected_vendor = (vendor or "openai").strip().lower()
+    selected_model = (model or "").strip()
 
     try:
         # Ensure Redis is connected so checkpoint approvals can be consumed.
@@ -182,6 +248,8 @@ async def run_dev_agent(ticket_id: str, db_session: AsyncSession) -> None:
             "title": ticket.title,
             "description": ticket.description or "",
             "dependencies": list(dict.fromkeys(dependencies)),
+            "vendor": selected_vendor,
+            "model": selected_model or "default",
             "plan": "",
             "code": "",
             "tests_passed": False,
@@ -191,7 +259,7 @@ async def run_dev_agent(ticket_id: str, db_session: AsyncSession) -> None:
         await _broadcast(ticket_id, "plan", "running", "Generating Plan...")
         plan_update = await planner_node(state)
         state["plan"] = plan_update["plan"]
-        await _broadcast(ticket_id, "plan", "running", state["plan"])
+        await _broadcast(ticket_id, "plan", "running", f"## Plan\n\n{state['plan']}")
         await redis_client.set(checkpoint_key, "waiting_plan")
         await _broadcast(ticket_id, "plan", "awaiting_approval", "Plan drafted. Waiting for approval.")
         await _wait_for_approval(checkpoint_key, "approved_plan")
@@ -200,7 +268,7 @@ async def run_dev_agent(ticket_id: str, db_session: AsyncSession) -> None:
         await _broadcast(ticket_id, "draft", "running", "Writing Code...")
         draft_update = await drafter_node(state)
         state["code"] = draft_update["code"]
-        await _broadcast(ticket_id, "draft", "running", state["code"])
+        await _broadcast(ticket_id, "draft", "running", f"## Draft Code\n\n```\n{state['code']}\n```")
         await redis_client.set(checkpoint_key, "waiting_draft")
         await _broadcast(ticket_id, "draft", "awaiting_approval", "Code drafted. Waiting for approval.")
         await _wait_for_approval(checkpoint_key, "approved_draft")
@@ -213,6 +281,9 @@ async def run_dev_agent(ticket_id: str, db_session: AsyncSession) -> None:
             await _broadcast(ticket_id, "verify", "running", "Verification successful. Tests passed.")
         else:
             await _broadcast(ticket_id, "verify", "error", "Verification failed.")
+
+        report_path = await _write_markdown_report(state, state["vendor"], state["model"])
+        await _broadcast(ticket_id, "verify", "running", f"Markdown report saved: {report_path}")
 
     except Exception as exc:
         logger.exception(f"Dev agent failed for ticket {ticket_id}: {exc}")
