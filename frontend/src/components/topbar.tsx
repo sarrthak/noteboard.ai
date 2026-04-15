@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useProjectStore } from "@/store/useProjectStore";
+import { useModelConfigStore } from "@/store/useModelConfigStore";
 
 export function Topbar() {
   const { data: session } = useSession();
@@ -23,7 +24,18 @@ export function Topbar() {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   
   const { projects, selectedProjectId, selectProject, fetchProjects, isLoading } = useProjectStore();
+  const {
+    catalog,
+    selectedVendor,
+    selectedModel,
+    isLoading: modelsLoading,
+    error: modelCatalogError,
+    fetchCatalog,
+    setSelectedVendor,
+    setSelectedModel,
+  } = useModelConfigStore();
   const selectedProject = projects.find(p => p.id === selectedProjectId) || projects[0];
+  const selectedVendorModels = catalog.find((vendor) => vendor.key === selectedVendor)?.models ?? [];
 
   const projectDropdownRef = useRef<HTMLDivElement>(null);
   const userDropdownRef = useRef<HTMLDivElement>(null);
@@ -34,6 +46,18 @@ export function Topbar() {
       fetchProjects(session.accessToken);
     }
   }, [session?.accessToken, fetchProjects, projects.length]);
+
+  useEffect(() => {
+    if (
+      !session?.accessToken ||
+      modelsLoading ||
+      catalog.length > 0 ||
+      Boolean(modelCatalogError)
+    ) {
+      return;
+    }
+    void fetchCatalog(session.accessToken);
+  }, [session?.accessToken, modelsLoading, catalog.length, modelCatalogError, fetchCatalog]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -68,9 +92,9 @@ export function Topbar() {
   const userInitial = session?.user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <header className="h-[60px] bg-background border-b border-foreground/10 flex items-center justify-between px-6">
+    <header className="h-[60px] bg-background border-b border-foreground/10 flex items-center justify-between px-6 gap-4">
       {/* Left: Project Switcher */}
-      <div className="relative" ref={projectDropdownRef}>
+      <div className="relative shrink-0" ref={projectDropdownRef}>
         <button
           onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
           className={clsx(
@@ -136,8 +160,49 @@ export function Topbar() {
         )}
       </div>
 
+      {/* Middle: Runtime Selection (Global) */}
+      <div className="hidden lg:flex items-center gap-2 px-3 py-2 border border-foreground/10 rounded-sm min-w-0 flex-1 max-w-3xl">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+          Runtime
+        </span>
+
+        <select
+          value={selectedVendor}
+          onChange={(e) => setSelectedVendor(e.target.value)}
+          disabled={modelsLoading || catalog.length === 0}
+          className="min-w-[150px] px-2 py-1.5 rounded-sm bg-muted border border-foreground/10 text-xs text-foreground focus:outline-none"
+        >
+          {modelsLoading && <option value="">Loading vendors...</option>}
+          {!modelsLoading && catalog.length === 0 && (
+            <option value="">No vendors</option>
+          )}
+          {catalog.map((vendor) => (
+            <option key={vendor.key} value={vendor.key}>
+              {vendor.label}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={selectedModel}
+          onChange={(e) => setSelectedModel(e.target.value)}
+          disabled={modelsLoading || selectedVendorModels.length === 0}
+          className="min-w-0 flex-1 px-2 py-1.5 rounded-sm bg-muted border border-foreground/10 text-xs text-foreground focus:outline-none"
+        >
+          {modelsLoading && <option value="">Loading models...</option>}
+          {!modelsLoading && selectedVendorModels.length === 0 && (
+            <option value="">No models</option>
+          )}
+          {selectedVendorModels.map((model) => (
+            <option key={model.id} value={model.id}>
+              {model.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Right: User Profile */}
-      <div className="relative" ref={userDropdownRef}>
+      <div className="relative shrink-0" ref={userDropdownRef}>
         <button
           onClick={() => setUserDropdownOpen(!userDropdownOpen)}
           className="flex items-center gap-2 hover:opacity-80 transition-opacity"

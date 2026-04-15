@@ -8,6 +8,7 @@ import { Sparkles, Loader2, AlertCircle, Ticket } from "lucide-react";
 import { ArchitectureCanvas } from "@/components/design/architecture-canvas";
 import { parseMermaidToReactFlow } from "@/lib/mermaidParser";
 import { API_BASE_URL } from "@/lib/api";
+import { useModelConfigStore } from "@/store/useModelConfigStore";
 
 interface TicketDetails {
   id: string;
@@ -22,6 +23,9 @@ interface TicketDetails {
 export default function DesignPage() {
   const params = useParams<{ ticketId: string }>();
   const { data: session } = useSession();
+  const { selectedVendor, selectedModel } = useModelConfigStore();
+  const runtimeVendor = selectedVendor || "openai";
+  const runtimeModel = selectedModel || "gpt-4o";
   const ticketId = params.ticketId;
   const canGenerate = Boolean(session?.accessToken && ticketId);
 
@@ -78,6 +82,8 @@ export default function DesignPage() {
           body: JSON.stringify({
             ticket_id: ticketId,
             additional_context: additionalContext || null,
+            vendor: runtimeVendor,
+            model: runtimeModel,
           }),
         }
       );
@@ -100,7 +106,7 @@ export default function DesignPage() {
     } finally {
       setIsGenerating(false);
     }
-  }, [session?.accessToken, ticketId, additionalContext]);
+  }, [session?.accessToken, ticketId, additionalContext, runtimeVendor, runtimeModel]);
 
   /* ---- Render ---- */
   return (
@@ -168,6 +174,9 @@ export default function DesignPage() {
           >
             Additional Context
           </label>
+          <p className="text-[11px] text-muted-foreground">
+            Runtime: {runtimeVendor.toUpperCase()} / {runtimeModel}
+          </p>
           <textarea
             id="ctx"
             rows={4}

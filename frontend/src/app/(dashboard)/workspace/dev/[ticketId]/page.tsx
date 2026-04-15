@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { API_BASE_URL } from "@/lib/api";
+import { useModelConfigStore } from "@/store/useModelConfigStore";
 
 /* ── Types ────────────────────────────────────────────────── */
 
@@ -11,21 +12,6 @@ interface LogEntry {
   log: string;
   step: string;
   status: string;
-}
-
-interface ModelCatalogEntry {
-  id: string;
-  name: string;
-}
-
-interface ModelCatalogVendor {
-  key: string;
-  label: string;
-  models: ModelCatalogEntry[];
-}
-
-interface ModelCatalogResponse {
-  vendors: ModelCatalogVendor[];
 }
 
 type Step = "idle" | "plan" | "draft" | "verify" | "done";
@@ -48,16 +34,17 @@ function stepIndex(s: Step): number {
 export default function DevMissionControlPage() {
   const params = useParams<{ ticketId: string }>();
   const { data: session } = useSession();
+  const {
+    selectedVendor,
+    selectedModel,
+    isLoading: catalogLoading,
+  } = useModelConfigStore();
   const ticketId = params.ticketId;
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [activeStep, setActiveStep] = useState<Step>("idle");
   const [isWaitingForApproval, setIsWaitingForApproval] = useState(false);
   const [buildStarted, setBuildStarted] = useState(false);
-  const [catalog, setCatalog] = useState<ModelCatalogVendor[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(false);
-  const [selectedVendor, setSelectedVendor] = useState("");
-  const [selectedModel, setSelectedModel] = useState("");
 
   const wsRef = useRef<WebSocket | null>(null);
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -102,65 +89,6 @@ export default function DevMissionControlPage() {
     });
   }, [logs]);
 
-  useEffect(() => {
-    if (!session?.accessToken) return;
-
-    let active = true;
-
-    const loadCatalog = async () => {
-      setCatalogLoading(true);
-      try {
-        const response = await fetch(`${API_BASE_URL}/dev/models`, {
-          headers: { Authorization: `Bearer ${session.accessToken}` },
-        });
-
-        if (!response.ok) throw new Error("Failed to load model catalog");
-
-        const payload: ModelCatalogResponse = await response.json();
-        const vendors = (payload.vendors ?? []).filter((vendor) => vendor.models.length > 0);
-
-        if (!active) return;
-
-        setCatalog(vendors);
-
-        if (vendors.length === 0) {
-          setSelectedVendor("");
-          setSelectedModel("");
-          return;
-        }
-
-        setSelectedVendor((prev) => {
-          if (prev && vendors.some((vendor) => vendor.key === prev)) return prev;
-          return vendors[0].key;
-        });
-      } catch {
-        if (!active) return;
-        setCatalog([]);
-        setSelectedVendor("");
-        setSelectedModel("");
-      } finally {
-        if (active) setCatalogLoading(false);
-      }
-    };
-
-    loadCatalog();
-
-    return () => {
-      active = false;
-    };
-  }, [session?.accessToken]);
-
-  useEffect(() => {
-    const vendorModels = catalog.find((vendor) => vendor.key === selectedVendor)?.models ?? [];
-    if (vendorModels.length === 0) {
-      if (selectedModel !== "") setSelectedModel("");
-      return;
-    }
-    if (!vendorModels.some((model) => model.id === selectedModel)) {
-      setSelectedModel(vendorModels[0].id);
-    }
-  }, [catalog, selectedVendor, selectedModel]);
-
   /* ── Actions ────────────────────────────────────────── */
   const startBuild = useCallback(async () => {
     if (!session?.accessToken || !ticketId || !selectedVendor || !selectedModel) return;
@@ -196,7 +124,6 @@ export default function DevMissionControlPage() {
 
   /* ── Render ─────────────────────────────────────────── */
   const currentIdx = stepIndex(activeStep);
-  const selectedVendorModels = catalog.find((vendor) => vendor.key === selectedVendor)?.models ?? [];
 
   return (
     <div className="flex flex-col h-[calc(100vh-7rem)] gap-3 max-w-[1400px] mx-auto">
@@ -425,56 +352,13 @@ export default function DevMissionControlPage() {
               <StatusRow label="Model" value={selectedModel || "—"} />
             </div>
 
-            <div className="space-y-3 mt-5">
-              <div className="space-y-1.5">
-                <label className="font-mono text-[10px] tracking-wider text-muted-foreground/40 uppercase block">
-                  Vendor
-                </label>
-                <select
-                  value={selectedVendor}
-                  onChange={(e) => setSelectedVendor(e.target.value)}
-                  disabled={(buildStarted && activeStep !== "done") || catalogLoading || catalog.length === 0}
-                  className="w-full rounded-sm py-2 px-3 font-mono text-[11px]"
-                  style={{
-                    background: "rgba(249,248,244,0.05)",
-                    border: "1px solid #444",
-                    color: "#F9F8F4",
-                  }}
-                >
-                  {catalog.map((vendor) => (
-                    <option key={vendor.key} value={vendor.key}>
-                      {vendor.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="font-mono text-[10px] tracking-wider text-muted-foreground/40 uppercase block">
-                  Model
-                </label>
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  disabled={(buildStarted && activeStep !== "done") || catalogLoading || selectedVendorModels.length === 0}
-                  className="w-full rounded-sm py-2 px-3 font-mono text-[11px]"
-                  style={{
-                    background: "rgba(249,248,244,0.05)",
-                    border: "1px solid #444",
-                    color: "#F9F8F4",
-                  }}
-                >
-                  {catalogLoading && <option value="">Loading models...</option>}
-                  {!catalogLoading && selectedVendorModels.length === 0 && (
-                    <option value="">No models available</option>
-                  )}
-                  {selectedVendorModels.map((model) => (
-                    <option key={model.id} value={model.id}>
-                      {model.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="mt-5 rounded-sm border border-foreground/10 px-3 py-2">
+              <p className="font-mono text-[10px] tracking-wider text-muted-foreground/40 uppercase">
+                Runtime source
+              </p>
+              <p className="font-mono text-[11px] text-foreground/80 mt-1">
+                Global topbar selection
+              </p>
             </div>
 
             {/* Action buttons */}
