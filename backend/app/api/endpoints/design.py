@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +15,7 @@ from app.api.deps import get_current_user, get_db
 from app.models.project import Project
 from app.models.ticket import Ticket
 from app.models.user import User
-from app.services.ai import AIConfigurationError, ai_service
+from app.services.ai import AIConfigurationError, SUPPORTED_MODEL_VENDORS, ai_service
 from app.services.knowledge_graph import knowledge_graph_service
 
 router = APIRouter(prefix="/design", tags=["Design"])
@@ -27,6 +27,25 @@ class DesignRequest(BaseModel):
     """Input for HLD generation."""
     ticket_id: str
     additional_context: str | None = None
+    vendor: str = "openai"
+    model: str = "gpt-4o"
+
+    @field_validator("vendor")
+    @classmethod
+    def validate_vendor(cls, v: str) -> str:
+        vendor = v.strip().lower()
+        if vendor not in SUPPORTED_MODEL_VENDORS:
+            allowed = ", ".join(sorted(SUPPORTED_MODEL_VENDORS))
+            raise ValueError(f"vendor must be one of: {allowed}")
+        return vendor
+
+    @field_validator("model")
+    @classmethod
+    def validate_model(cls, v: str) -> str:
+        model = v.strip()
+        if not model:
+            raise ValueError("model is required")
+        return model
 
 
 class DesignResponse(BaseModel):
@@ -94,7 +113,7 @@ async def generate_hld(
     except Exception as e:
         logger.warning(f"Could not fetch graph dependencies (non-critical): {e}")
 
-    # 4. Build the prompt and call OpenAI
+    # 4. Build the prompt and call AI provider
     additional = (
         f"\n\nAdditional context from the user:\n{request.additional_context}"
         if request.additional_context
@@ -118,17 +137,13 @@ async def generate_hld(
     )
 
     try:
-        client = ai_service.get_client()
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
+        mermaid_code = await ai_service.chat_completion(
+            system_prompt=system_prompt,
+            user_prompt=user_message,
+            vendor=request.vendor,
+            model=request.model,
             temperature=0.3,
         )
-
-        mermaid_code = (response.choices[0].message.content or "").strip()
 
         # Strip accidental markdown fences the model sometimes adds
         if mermaid_code.startswith("```"):
@@ -145,7 +160,7 @@ async def generate_hld(
         logger.warning(f"HLD generation unavailable: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI design generation is unavailable because OPENAI_API_KEY is not configured",
+            detail="AI design generation is unavailable because the selected model provider is not configured",
         )
 
     except Exception as e:

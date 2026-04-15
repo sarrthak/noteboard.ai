@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +15,7 @@ from app.api.deps import get_current_user, get_db
 from app.models.project import Project
 from app.models.ticket import Ticket, TicketType
 from app.models.user import User
-from app.services.ai import AIConfigurationError, ai_service
+from app.services.ai import AIConfigurationError, SUPPORTED_MODEL_VENDORS, ai_service
 from app.services.knowledge_graph import knowledge_graph_service
 
 router = APIRouter(prefix="/huddle", tags=["Huddle"])
@@ -31,6 +31,25 @@ class SynthesizeRequest(BaseModel):
     """Request for ticket synthesis."""
     transcript: str
     project_id: UUID
+    vendor: str = "openai"
+    model: str = "gpt-4o"
+
+    @field_validator("vendor")
+    @classmethod
+    def validate_vendor(cls, v: str) -> str:
+        vendor = v.strip().lower()
+        if vendor not in SUPPORTED_MODEL_VENDORS:
+            allowed = ", ".join(sorted(SUPPORTED_MODEL_VENDORS))
+            raise ValueError(f"vendor must be one of: {allowed}")
+        return vendor
+
+    @field_validator("model")
+    @classmethod
+    def validate_model(cls, v: str) -> str:
+        model = v.strip()
+        if not model:
+            raise ValueError("model is required")
+        return model
 
 
 class SynthesizedTicket(BaseModel):
@@ -82,6 +101,25 @@ class ConfirmRequest(BaseModel):
     """Request to confirm and save tickets."""
     project_id: UUID
     tickets: list[ConfirmTicket]
+    vendor: str = "openai"
+    model: str = "gpt-4o"
+
+    @field_validator("vendor")
+    @classmethod
+    def validate_vendor(cls, v: str) -> str:
+        vendor = v.strip().lower()
+        if vendor not in SUPPORTED_MODEL_VENDORS:
+            allowed = ", ".join(sorted(SUPPORTED_MODEL_VENDORS))
+            raise ValueError(f"vendor must be one of: {allowed}")
+        return vendor
+
+    @field_validator("model")
+    @classmethod
+    def validate_model(cls, v: str) -> str:
+        model = v.strip()
+        if not model:
+            raise ValueError("model is required")
+        return model
 
 
 class TicketResponse(BaseModel):
@@ -124,7 +162,7 @@ async def upload_audio(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unsupported file type: {file.content_type}. Allowed: {allowed_types}"
         )
-    
+
     logger.info(f"User {current_user.email} uploading audio for transcription")
     
     try:
@@ -134,7 +172,7 @@ async def upload_audio(
         logger.warning(f"Transcription unavailable: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI transcription is unavailable because OPENAI_API_KEY is not configured",
+            detail="AI transcription is unavailable because the OpenAI provider is not configured",
         )
     except Exception as e:
         logger.error(f"Transcription failed: {e}")
@@ -178,7 +216,9 @@ async def synthesize_tickets(
         
         result = await ai_service.synthesize_tickets(
             transcript=request.transcript,
-            project_context=project_context
+            project_context=project_context,
+            vendor=request.vendor,
+            model=request.model,
         )
         
         tickets = [
@@ -201,7 +241,7 @@ async def synthesize_tickets(
         logger.warning(f"Synthesis unavailable: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI synthesis is unavailable because OPENAI_API_KEY is not configured",
+            detail="AI synthesis is unavailable because the selected model provider is not configured",
         )
         
     except Exception as e:
@@ -303,6 +343,8 @@ async def confirm_tickets(
             ai_relationships = await ai_service.analyze_capability_relationships(
                 new_capabilities=new_capabilities,
                 existing_capabilities=existing_only,
+                vendor=request.vendor,
+                model=request.model,
             )
             
             if ai_relationships:

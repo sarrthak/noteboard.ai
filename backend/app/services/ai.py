@@ -14,6 +14,28 @@ from openai import AsyncOpenAI
 from app.core.config import settings
 
 
+SUPPORTED_MODEL_VENDORS = {
+    "openai",
+    "deepseek",
+    "anthropic",
+    "gemini",
+    "zai",
+    "qwen",
+    "saravam",
+    "openrouter",
+}
+
+OPENROUTER_VENDOR_KEYS = {
+    "deepseek",
+    "anthropic",
+    "gemini",
+    "zai",
+    "qwen",
+    "saravam",
+    "openrouter",
+}
+
+
 class AIConfigurationError(RuntimeError):
     """Raised when AI features are used without required configuration."""
 
@@ -22,14 +44,14 @@ class AIService:
     """Service for AI-powered features using OpenAI APIs."""
 
     def __init__(self):
-        self._api_key = self._normalize_api_key(settings.OPENAI_API_KEY)
+        self._openai_api_key = self._normalize_api_key(settings.OPENAI_API_KEY)
         self.client: AsyncOpenAI | None = None
 
-        if self._api_key:
-            self.client = AsyncOpenAI(api_key=self._api_key)
+        if self._openai_api_key:
+            self.client = AsyncOpenAI(api_key=self._openai_api_key)
         else:
             logger.warning(
-                "OPENAI_API_KEY is not configured. AI-powered features are disabled."
+                "OPENAI_API_KEY is not configured. OpenAI-backed AI features are disabled."
             )
 
     @staticmethod
@@ -49,27 +71,123 @@ class AIService:
 
     def get_client(self) -> AsyncOpenAI:
         """Return an initialized OpenAI client or raise a config error."""
-        if not self._api_key:
+        if not self._openai_api_key:
             raise AIConfigurationError(
                 "OPENAI_API_KEY is not configured on the backend service"
             )
 
         if self.client is None:
-            self.client = AsyncOpenAI(api_key=self._api_key)
+            self.client = AsyncOpenAI(api_key=self._openai_api_key)
 
         return self.client
 
-    async def transcribe_audio(self, file: UploadFile) -> str:
+    def _resolve_client_and_model(
+        self,
+        vendor: str | None,
+        model: str | None,
+        *,
+        default_openai_model: str,
+        default_openrouter_model: str,
+    ) -> tuple[AsyncOpenAI, str]:
+        selected_vendor = (vendor or "openai").strip().lower()
+        selected_model = (model or "").strip()
+        use_openrouter = selected_vendor in OPENROUTER_VENDOR_KEYS or "/" in selected_model
+
+        if use_openrouter:
+            openrouter_api_key = self._normalize_api_key(os.getenv("OPENROUTER_API_KEY", ""))
+            if not openrouter_api_key:
+                raise AIConfigurationError(
+                    "OPENROUTER_API_KEY is not configured on the backend service"
+                )
+
+            base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").strip()
+            default_model = os.getenv("OPENROUTER_DEFAULT_MODEL", default_openrouter_model).strip()
+
+            client = AsyncOpenAI(
+                api_key=openrouter_api_key,
+                base_url=base_url or "https://openrouter.ai/api/v1",
+            )
+            return client, selected_model or default_model or default_openrouter_model
+
+        openai_api_key = self._normalize_api_key(settings.OPENAI_API_KEY)
+        if not openai_api_key:
+            raise AIConfigurationError(
+                "OPENAI_API_KEY is not configured on the backend service"
+            )
+
+        openai_base_url = os.getenv("OPENAI_BASE_URL", "").strip()
+        default_model = os.getenv("OPENAI_DEFAULT_MODEL", default_openai_model).strip()
+
+        if openai_base_url:
+            client = AsyncOpenAI(api_key=openai_api_key, base_url=openai_base_url)
+        else:
+            client = AsyncOpenAI(api_key=openai_api_key)
+
+        return client, selected_model or default_model or default_openai_model
+
+    async def chat_completion(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        vendor: str = "openai",
+        model: str = "gpt-4o",
+        temperature: float = 0.3,
+        response_format: dict[str, Any] | None = None,
+    ) -> str:
+        client, selected_model = self._resolve_client_and_model(
+            vendor,
+            model,
+            default_openai_model="gpt-4o",
+            default_openrouter_model="openai/gpt-4o",
+        )
+
+        completion_args: dict[str, Any] = {
+            "model": selected_model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "temperature": temperature,
+        }
+
+        if response_format is not None:
+            completion_args["response_format"] = response_format
+
+        response = await client.chat.completions.create(**completion_args)
+        return (response.choices[0].message.content or "").strip()
+
+    async def transcribe_audio(
+        self,
+        file: UploadFile,
+        model: str = "gpt-4o-transcribe",
+    ) -> str:
         """
-        Transcribe audio file using OpenAI Whisper.
+        Transcribe audio with OpenAI models.
+
+        Uses `gpt-4o-transcribe` by default and automatically falls back
+        to `whisper-1` if the primary model fails.
         
         Args:
             file: The uploaded audio file
+            model: Requested OpenAI transcription model
             
         Returns:
             Transcribed text
         """
-        client = self.get_client()
+        requested_model = (model or "gpt-4o-transcribe").strip() or "gpt-4o-transcribe"
+        if requested_model not in {"gpt-4o-transcribe", "whisper-1"}:
+            logger.warning(
+                f"Unsupported transcription model '{requested_model}'; defaulting to gpt-4o-transcribe"
+            )
+            requested_model = "gpt-4o-transcribe"
+
+        client, selected_model = self._resolve_client_and_model(
+            "openai",
+            requested_model,
+            default_openai_model="gpt-4o-transcribe",
+            default_openrouter_model="openai/gpt-4o-transcribe",
+        )
 
         # Save file temporarily
         suffix = os.path.splitext(file.filename or ".wav")[1]
@@ -81,16 +199,39 @@ class AIService:
 
         try:
             logger.info(f"Transcribing audio file: {file.filename}")
-            
-            with open(tmp_path, "rb") as audio_file:
-                transcription = await client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=audio_file,
-                    response_format="text"
+
+            async def transcribe_with_model(model_name: str) -> str:
+                with open(tmp_path, "rb") as audio_file:
+                    transcription = await client.audio.transcriptions.create(
+                        model=model_name,
+                        file=audio_file,
+                        response_format="text",
+                    )
+
+                if isinstance(transcription, str):
+                    return transcription
+
+                text = getattr(transcription, "text", "")
+                if isinstance(text, str) and text.strip():
+                    return text
+
+                return str(transcription)
+
+            try:
+                text = await transcribe_with_model(selected_model)
+                logger.info(f"Audio transcription completed successfully with {selected_model}")
+                return text
+            except Exception as primary_error:
+                fallback_model = "whisper-1" if selected_model == "gpt-4o-transcribe" else None
+                if not fallback_model:
+                    raise
+
+                logger.warning(
+                    f"Primary transcription model {selected_model} failed; retrying with {fallback_model}: {primary_error}"
                 )
-            
-            logger.info("Audio transcription completed successfully")
-            return transcription
+                text = await transcribe_with_model(fallback_model)
+                logger.info(f"Audio transcription fallback succeeded with {fallback_model}")
+                return text
             
         except Exception as e:
             logger.error(f"Transcription error: {e}")
@@ -103,7 +244,9 @@ class AIService:
     async def synthesize_tickets(
         self, 
         transcript: str, 
-        project_context: str = ""
+        project_context: str = "",
+        vendor: str = "openai",
+        model: str = "gpt-5o",
     ) -> dict[str, Any]:
         """
         Convert transcript into structured tickets using GPT.
@@ -170,22 +313,18 @@ Please analyze this transcript and extract all actionable capabilities.
 Identify BOTH hard dependencies (depends_on) AND thematic relationships (related_to) between them.
 Be thorough in finding connections - a well-connected Knowledge Graph is the goal."""
 
-        client = self.get_client()
-
         try:
             logger.info("Synthesizing tickets from transcript")
-            
-            response = await client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
-                ],
+
+            content = await self.chat_completion(
+                system_prompt=system_prompt,
+                user_prompt=user_message,
+                vendor=vendor,
+                model=model,
                 response_format={"type": "json_object"},
                 temperature=0.3,
             )
-            
-            content = response.choices[0].message.content
+
             if not content:
                 logger.error("GPT returned empty content")
                 return {"tickets": []}
@@ -228,6 +367,8 @@ Be thorough in finding connections - a well-connected Knowledge Graph is the goa
         self,
         new_capabilities: list[dict],
         existing_capabilities: list[dict] | None = None,
+        vendor: str = "openai",
+        model: str = "gpt-4o",
     ) -> list[dict]:
         """
         Analyze relationships between capabilities using AI.
@@ -309,22 +450,18 @@ Find relationships where:
 
 Be thorough - a well-connected Knowledge Graph is the goal. Each capability should ideally have at least one connection."""
 
-        client = self.get_client()
-
         try:
             logger.info(f"AI analyzing relationships for {len(new_capabilities)} new + {len(existing_capabilities)} existing capabilities")
-            
-            response = await client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message}
-                ],
+
+            content = await self.chat_completion(
+                system_prompt=system_prompt,
+                user_prompt=user_message,
+                vendor=vendor,
+                model=model,
                 response_format={"type": "json_object"},
                 temperature=0.3,
             )
-            
-            content = response.choices[0].message.content
+
             if not content:
                 logger.error("GPT returned empty content for relationship analysis")
                 return []
