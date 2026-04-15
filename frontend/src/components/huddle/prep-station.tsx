@@ -2,7 +2,8 @@
 
 import { useRef, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Check, Trash2, Loader2, Sparkles, CheckCheck } from "lucide-react";
+import { Mic, MicOff, Check, Trash2, Loader2, Sparkles, CheckCheck, ChevronDown } from "lucide-react";
+import { clsx } from "clsx";
 import { useHuddleStore } from "@/store/useHuddleStore";
 import { useSession } from "next-auth/react";
 import { createAudioFormData } from "@/lib/audio-utils";
@@ -287,10 +288,27 @@ export function PrepStation({ projectId }: PrepStationProps) {
     }
   };
 
+  const [mobileExpanded, setMobileExpanded] = useState(true);
+
   return (
-    <div className="w-[35%] h-full flex flex-col bg-[#1A1A19] border-r border-[#F9F8F4]/10 p-6">
+    <div className="w-full lg:w-[35%] lg:h-full flex flex-col bg-[#1A1A19] border-r border-[#F9F8F4]/10 p-4 lg:p-6">
       {/* Header */}
-      <h2 className="text-xl font-semibold text-foreground mb-6">Prep Station</h2>
+      <button
+        onClick={() => setMobileExpanded(!mobileExpanded)}
+        className="flex items-center justify-between w-full lg:pointer-events-none"
+      >
+        <h2 className="text-xl font-semibold text-foreground">Prep Station</h2>
+        <ChevronDown
+          className={clsx(
+            "w-5 h-5 text-foreground/60 transition-transform lg:hidden",
+            mobileExpanded && "rotate-180"
+          )}
+        />
+      </button>
+      <div className="mb-4 lg:mb-6" />
+
+      {/* Collapsible content on mobile */}
+      <div className={clsx("flex flex-col", !mobileExpanded && "hidden lg:flex")}>
 
       {/* Microphone Trigger */}
       <div className="flex flex-col items-center mb-6">
@@ -453,6 +471,9 @@ export function PrepStation({ projectId }: PrepStationProps) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* end collapsible wrapper */}
       </div>
     </div>
   );

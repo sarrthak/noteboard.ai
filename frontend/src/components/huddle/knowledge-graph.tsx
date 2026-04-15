@@ -120,18 +120,24 @@ export function KnowledgeGraph({ projectId, onClose }: KnowledgeGraphProps) {
     };
   }, [apiGraphData, storeGraphData]);
 
-  // Update dimensions on resize
+// Update dimensions on resize using ResizeObserver for responsive canvas
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
     const updateDimensions = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setDimensions({ width: rect.width, height: rect.height });
-      }
+      const rect = container.getBoundingClientRect();
+      setDimensions({ width: rect.width, height: rect.height });
     };
 
     updateDimensions();
-    window.addEventListener("resize", updateDimensions);
-    return () => window.removeEventListener("resize", updateDimensions);
+
+    const observer = new ResizeObserver(() => {
+      updateDimensions();
+    });
+    observer.observe(container);
+
+    return () => observer.disconnect();
   }, []);
 
   // Fetch graph data from API

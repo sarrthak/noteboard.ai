@@ -23,12 +23,12 @@ export default function HuddlePage() {
   }, [searchParams, selectedProjectId, selectProject]);
 
   return (
-    <div className="h-[calc(100vh-60px)] flex overflow-hidden">
-      {/* Left Panel - Prep Station (35%) */}
+    <div className="h-[calc(100vh-60px)] flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
+      {/* Left Panel - Prep Station */}
       <PrepStation projectId={selectedProjectId || undefined} />
 
-      {/* Right Panel - Stove/Pantry (65%) */}
-      <div className="w-[65%] flex flex-col border-l border-foreground/10">
+      {/* Right Panel - Stove/Pantry */}
+      <div className="w-full lg:w-[65%] flex-1 flex flex-col border-t lg:border-t-0 lg:border-l border-foreground/10">
         {/* Header with Toggle */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-foreground/10">
           <h2 className="text-sm font-semibold text-foreground">

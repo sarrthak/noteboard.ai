@@ -145,18 +145,18 @@ export function Stove({ projectId }: StoveProps) {
   };
 
   return (
-    <div className="h-full w-full flex flex-col p-6 overflow-hidden">
+    <div className="h-full w-full flex flex-col p-4 lg:p-6 overflow-hidden">
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-foreground/60">Loading tickets...</div>
         </div>
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="flex-1 flex gap-6 overflow-x-auto pb-4">
+          <div className="flex-1 flex flex-nowrap gap-4 lg:gap-6 overflow-x-auto pb-4 snap-x snap-mandatory lg:snap-none">
             {COLUMNS.map((column) => (
               <div
                 key={column.id}
-                className="flex-1 min-w-[250px] flex flex-col"
+                className="flex-shrink-0 min-w-[85vw] md:min-w-[300px] lg:min-w-0 lg:flex-1 flex flex-col snap-center"
               >
                 {/* Column Header */}
                 <div className="flex items-center justify-between mb-4 px-1">
