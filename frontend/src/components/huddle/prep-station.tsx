@@ -7,13 +7,39 @@ import { useHuddleStore } from "@/store/useHuddleStore";
 import { useSession } from "next-auth/react";
 import { createAudioFormData } from "@/lib/audio-utils";
 import { API_BASE_URL } from "@/lib/api";
+import { useModelConfigStore } from "@/store/useModelConfigStore";
 
 interface PrepStationProps {
   projectId?: string;
 }
 
+interface ConfirmedTicketResponse {
+  id: string;
+  title: string;
+  description: string;
+  business_value: string;
+  type: string;
+}
+
+const RECORDER_MIME_CANDIDATES = [
+  "audio/webm;codecs=opus",
+  "audio/webm",
+  "audio/mp4",
+];
+
+function getSupportedRecorderMimeType(): string | undefined {
+  if (typeof MediaRecorder === "undefined" || typeof MediaRecorder.isTypeSupported !== "function") {
+    return undefined;
+  }
+
+  return RECORDER_MIME_CANDIDATES.find((mimeType) => MediaRecorder.isTypeSupported(mimeType));
+}
+
 export function PrepStation({ projectId }: PrepStationProps) {
   const { data: session } = useSession();
+  const { selectedVendor, selectedModel } = useModelConfigStore();
+  const runtimeVendor = selectedVendor || "openai";
+  const runtimeModel = selectedModel || "gpt-4o";
   const {
     isRecording,
     transcript,
@@ -33,6 +59,7 @@ export function PrepStation({ projectId }: PrepStationProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const recorderMimeTypeRef = useRef<string>("audio/webm");
 
   // Cleanup on unmount: stop mic stream and recorder to prevent leaked tracks
   useEffect(() => {
@@ -47,13 +74,72 @@ export function PrepStation({ projectId }: PrepStationProps) {
     };
   }, []);
 
+  const transcribeAudio = useCallback(async (audioBlob: Blob) => {
+    if (!session?.accessToken) {
+      alert("You must be logged in to transcribe audio.");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Convert to WAV when possible; utility falls back to original audio blob if needed.
+      const formData = await createAudioFormData(audioBlob, "file");
+
+      const response = await fetch(
+        `${API_BASE_URL}/huddle/upload`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        let detail = "Failed to transcribe audio";
+        try {
+          const errorPayload = await response.json();
+          if (typeof errorPayload?.detail === "string" && errorPayload.detail.trim()) {
+            detail = errorPayload.detail;
+          }
+        } catch {
+          // Keep generic detail when response body is not JSON.
+        }
+        throw new Error(detail);
+      }
+
+      const data = await response.json();
+      setTranscript(data.text);
+    } catch (error) {
+      console.error("Failed to transcribe audio:", error);
+      const message = error instanceof Error ? error.message : "Failed to process audio. Please try again.";
+      alert(message);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [session?.accessToken, setTranscript]);
+
   const handleStartRecording = useCallback(async () => {
+    if (!window.isSecureContext) {
+      alert("Microphone recording requires HTTPS (or localhost). Please open the app over a secure origin.");
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      alert("This browser does not support microphone capture.");
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "audio/webm;codecs=opus",
-      });
+      const supportedMimeType = getSupportedRecorderMimeType();
+      const mediaRecorder = supportedMimeType
+        ? new MediaRecorder(stream, { mimeType: supportedMimeType })
+        : new MediaRecorder(stream);
+      recorderMimeTypeRef.current = mediaRecorder.mimeType || supportedMimeType || "audio/webm";
 
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
@@ -72,7 +158,9 @@ export function PrepStation({ projectId }: PrepStationProps) {
         }
 
         // Create blob from chunks
-        const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const audioBlob = new Blob(chunksRef.current, {
+          type: recorderMimeTypeRef.current,
+        });
 
         // Transcribe audio
         await transcribeAudio(audioBlob);
@@ -82,9 +170,9 @@ export function PrepStation({ projectId }: PrepStationProps) {
       startRecording();
     } catch (error) {
       console.error("Failed to start recording:", error);
-      alert("Could not access microphone. Please check permissions.");
+      alert("Could not start microphone recording. Check browser microphone permissions and try again.");
     }
-  }, [startRecording]);
+  }, [startRecording, transcribeAudio]);
 
   const handleStopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
@@ -92,38 +180,6 @@ export function PrepStation({ projectId }: PrepStationProps) {
       stopRecording();
     }
   }, [stopRecording]);
-
-  const transcribeAudio = async (audioBlob: Blob) => {
-    setIsProcessing(true);
-
-    try {
-      // Convert to WAV format for better compatibility with Whisper API
-      const formData = await createAudioFormData(audioBlob, "file");
-
-      const response = await fetch(
-        `${API_BASE_URL}/huddle/upload`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session?.accessToken}`,
-          },
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to transcribe audio");
-      }
-
-      const data = await response.json();
-      setTranscript(data.text);
-    } catch (error) {
-      console.error("Failed to transcribe audio:", error);
-      alert("Failed to process audio. Please try again.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   const handleGenerateTickets = async () => {
     if (!transcript.trim() || !projectId) {
@@ -143,7 +199,9 @@ export function PrepStation({ projectId }: PrepStationProps) {
           },
           body: JSON.stringify({ 
             transcript,
-            project_id: projectId 
+            project_id: projectId,
+            vendor: runtimeVendor,
+            model: runtimeModel,
           }),
         }
       );
@@ -187,6 +245,8 @@ export function PrepStation({ projectId }: PrepStationProps) {
           },
           body: JSON.stringify({
             project_id: projectId,
+            vendor: runtimeVendor,
+            model: runtimeModel,
             tickets: draftTickets.map((t) => ({
               title: t.title,
               description: t.description,
@@ -203,11 +263,11 @@ export function PrepStation({ projectId }: PrepStationProps) {
         throw new Error("Failed to confirm tickets");
       }
 
-      const data = await response.json();
+      const data = await response.json() as { tickets: ConfirmedTicketResponse[] };
 
       // Add capabilities to the local graph store for immediate visualization
       addCapabilities(
-        data.tickets.map((t: any) => ({
+        data.tickets.map((t) => ({
           id: t.id,
           title: t.title,
           description: t.description,

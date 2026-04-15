@@ -2,6 +2,14 @@
  * Audio utility functions for converting and processing audio blobs
  */
 
+function extensionFromMimeType(mimeType: string): string {
+  if (mimeType.includes("webm")) return "webm";
+  if (mimeType.includes("mp4")) return "mp4";
+  if (mimeType.includes("mpeg") || mimeType.includes("mp3")) return "mp3";
+  if (mimeType.includes("wav")) return "wav";
+  return "webm";
+}
+
 /**
  * Converts an audio blob to WAV format using the Web Audio API
  */
@@ -140,10 +148,32 @@ function floatTo16BitPCM(
  */
 export async function createAudioFormData(
   audioBlob: Blob,
-  fieldName: string = "audio"
+  fieldName: string = "audio",
+  metadata?: Record<string, string>
 ): Promise<FormData> {
-  const wavBlob = await convertToWav(audioBlob);
   const formData = new FormData();
-  formData.append(fieldName, wavBlob, "recording.wav");
+
+  const appendMetadata = () => {
+    if (!metadata) return;
+    for (const [key, value] of Object.entries(metadata)) {
+      if (value && value.trim()) {
+        formData.append(key, value);
+      }
+    }
+  };
+
+  try {
+    const wavBlob = await convertToWav(audioBlob);
+    formData.append(fieldName, wavBlob, "recording.wav");
+  } catch (error) {
+    // Some browsers cannot decode certain recorded containers/codecs; upload original audio instead.
+    console.warn("WAV conversion failed, uploading original audio blob", error);
+    const extension = extensionFromMimeType(audioBlob.type);
+    const fallbackBlob = audioBlob.type ? audioBlob : new Blob([audioBlob], { type: "audio/webm" });
+    formData.append(fieldName, fallbackBlob, `recording.${extension}`);
+  }
+
+  appendMetadata();
+
   return formData;
 }
