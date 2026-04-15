@@ -17,13 +17,14 @@ You are an expert Frontend Engineer and UI/UX Designer. When generating or modif
 - **Monospace:** Use `font-mono` for anything related to code, logs, agent thoughts, or IDs.
 - **Glow Effects:** When an AI agent is active, use Tailwind shadow classes to create a gold glow: `shadow-[0_0_15px_rgba(239,211,11,0.3)]`.
 
-## 3. Motion & Animation (Framer Motion)
+## 3. Motion & Animation (Framer Motion + anime.js)
 
 Never let UI elements snap instantly. Use `framer-motion` for state changes.
 
 - **Presence:** Wrap conditionally rendered elements in `<AnimatePresence>`.
 - **The "Pulse":** When an agent is "thinking" or waiting for human approval, the active UI element must pulse.
   Example: `animate={{ opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1.5 }}`
+- **anime.js (v4):** Use for complex staggered/sequenced DOM animations (e.g., landing page hero). Import as `import { animate } from "animejs"` (named export, NOT default). Use `ease:` instead of `easing:`, `onComplete:` instead of `complete:`. Good for Tetris/pixel-art block drops, bounce-in staggers, and looping glow pulses.
 
 ## 4. Next.js 14 Best Practices
 
