@@ -27,6 +27,8 @@ const navItems: NavItem[] = [
   { name: "Dev", href: "/workspace/dev", icon: Terminal },
 ];
 
+export { navItems };
+
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
@@ -36,7 +38,7 @@ export function Sidebar() {
       initial={false}
       animate={{ width: isCollapsed ? 64 : 250 }}
       transition={{ duration: 0.2, ease: "easeInOut" }}
-      className="relative h-screen bg-background border-r border-foreground/10 flex flex-col"
+      className="relative h-screen bg-background border-r border-foreground/10 hidden md:flex flex-col"
     >
       {/* Logo */}
       <div className="h-[60px] flex items-center px-4 border-b border-foreground/10">

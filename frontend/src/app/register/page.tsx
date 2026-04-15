@@ -72,7 +72,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Starmap />
 
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md mx-4">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-foreground tracking-tight">
             noteboard<span className="text-primary">.ai</span>
@@ -82,7 +82,7 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <div className="border border-foreground/10 bg-background/80 backdrop-blur-sm p-8">
+        <div className="border border-foreground/10 bg-background/80 backdrop-blur-sm p-6 md:p-8">
           <h2 className="text-xl font-semibold text-foreground mb-6">
             Create your account
           </h2>

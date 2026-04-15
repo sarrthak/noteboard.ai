@@ -79,21 +79,21 @@ export default function Home() {
 function SiteHeader() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#1A1A19]/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="text-lg font-bold tracking-tight text-[#F9F8F4]">
+      <div className="mx-auto flex h-14 sm:h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
+        <Link href="/" className="text-base sm:text-lg font-bold tracking-tight text-[#F9F8F4]">
           noteboard.ai
         </Link>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href="/login"
-            className="rounded-md border border-transparent px-4 py-2 text-sm font-medium text-[#F9F8F4] transition hover:border-white/20 hover:bg-white/5"
+            className="hidden sm:inline-flex rounded-md border border-transparent px-4 py-2 text-sm font-medium text-[#F9F8F4] transition hover:border-white/20 hover:bg-white/5"
           >
             Log in
           </Link>
           <Link
             href="/register"
-            className="rounded-md border border-[#EFD30B] bg-[#EFD30B] px-4 py-2 text-sm font-semibold text-[#1A1A19] transition hover:-translate-y-0.5 hover:shadow-[0_0_20px_rgba(239,211,11,0.35)]"
+            className="rounded-md border border-[#EFD30B] bg-[#EFD30B] px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-[#1A1A19] transition hover:-translate-y-0.5 hover:shadow-[0_0_20px_rgba(239,211,11,0.35)]"
           >
             Start Building
           </Link>
@@ -105,7 +105,7 @@ function SiteHeader() {
 
 function HeroSection() {
   return (
-    <section className="relative overflow-hidden px-6 pb-24 pt-36 sm:pb-32 sm:pt-44 min-h-[90vh] flex items-center">
+    <section className="relative overflow-hidden px-4 sm:px-6 pb-16 pt-28 sm:pb-32 sm:pt-44 min-h-[85vh] sm:min-h-[90vh] flex items-center">
       {/* Radial ambient glow */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(239,211,11,0.08),transparent_45%),radial-gradient(circle_at_80%_75%,rgba(249,248,244,0.05),transparent_42%)]" />
 
@@ -120,24 +120,25 @@ function HeroSection() {
         transition={{ duration: 0.85, delay: 1.8, ease: [0.22, 1, 0.36, 1] }}
         className="relative z-20 mx-auto w-full max-w-5xl"
       >
-        <div className="mx-auto flex max-w-fit items-center gap-3 rounded-full border border-white/15 bg-black/40 px-4 py-2 text-xs uppercase tracking-[0.2em] text-white/60 backdrop-blur-lg">
+        <div className="mx-auto flex max-w-fit items-center gap-2 sm:gap-3 rounded-full border border-white/15 bg-black/40 px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs uppercase tracking-[0.15em] sm:tracking-[0.2em] text-white/60 backdrop-blur-lg">
           <BlockLogo />
-          Solo Architect Command Deck
+          <span className="hidden xs:inline">Solo Architect Command Deck</span>
+          <span className="xs:hidden">Command Deck</span>
         </div>
 
-        <h1 className="mx-auto mt-8 max-w-4xl text-balance text-center text-4xl font-semibold leading-tight text-[#F9F8F4] drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:text-5xl lg:text-6xl">
+        <h1 className="mx-auto mt-6 sm:mt-8 max-w-4xl text-balance text-center text-3xl font-semibold leading-tight text-[#F9F8F4] drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)] sm:text-4xl md:text-5xl lg:text-6xl">
           Orchestrate the Chaos of Software Development.
         </h1>
 
-        <p className="mx-auto mt-6 max-w-3xl text-balance text-center text-base leading-relaxed text-white/80 drop-shadow-[0_1px_8px_rgba(0,0,0,0.7)] sm:text-lg">
+        <p className="mx-auto mt-4 sm:mt-6 max-w-3xl text-balance text-center text-sm leading-relaxed text-white/80 drop-shadow-[0_1px_8px_rgba(0,0,0,0.7)] sm:text-base md:text-lg">
           From voice intent to executable architecture. You direct the AI; the AI writes the
           code.
         </p>
 
-        <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <div className="mt-8 sm:mt-10 flex flex-col items-center justify-center gap-3 sm:gap-4 sm:flex-row">
           <Link
             href="/register"
-            className="pointer-events-auto inline-flex items-center gap-2 rounded-md border border-[#EFD30B] bg-[#EFD30B] px-6 py-3 text-sm font-semibold text-[#1A1A19] transition hover:-translate-y-0.5 hover:shadow-[0_0_25px_rgba(239,211,11,0.35)]"
+            className="pointer-events-auto inline-flex items-center gap-2 rounded-md border border-[#EFD30B] bg-[#EFD30B] px-5 sm:px-6 py-2.5 sm:py-3 text-sm font-semibold text-[#1A1A19] transition hover:-translate-y-0.5 hover:shadow-[0_0_25px_rgba(239,211,11,0.35)]"
           >
             Initialize Workspace
             <ArrowRight className="h-4 w-4" strokeWidth={1.9} />
@@ -146,7 +147,7 @@ function HeroSection() {
             href="https://docs.noteboard.ai"
             target="_blank"
             rel="noreferrer"
-            className="pointer-events-auto inline-flex items-center gap-2 rounded-md border border-white/30 bg-black/30 px-6 py-3 text-sm font-medium text-[#F9F8F4] backdrop-blur-sm transition hover:border-white/60 hover:bg-white/5"
+            className="pointer-events-auto hidden sm:inline-flex items-center gap-2 rounded-md border border-white/30 bg-black/30 px-6 py-3 text-sm font-medium text-[#F9F8F4] backdrop-blur-sm transition hover:border-white/60 hover:bg-white/5"
           >
             Read the Docs
             <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
@@ -159,13 +160,13 @@ function HeroSection() {
 
 function ProductSection() {
   return (
-    <motion.section {...sectionAnimation} className="px-6 py-14 sm:py-16" id="product">
+    <motion.section {...sectionAnimation} className="px-4 sm:px-6 py-10 sm:py-14 md:py-16" id="product">
       <div className="mx-auto w-full max-w-6xl">
-        <h2 className="text-balance text-3xl font-semibold tracking-tight text-[#F9F8F4] sm:text-4xl">
+        <h2 className="text-balance text-2xl font-semibold tracking-tight text-[#F9F8F4] sm:text-3xl md:text-4xl">
           The Autonomous Software Factory
         </h2>
 
-        <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
+        <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-3">
           {features.map((feature) => {
             const Icon = feature.icon;
 
@@ -192,7 +193,7 @@ function TechStackSection() {
   const marqueeItems = [...stackNames, ...stackNames];
 
   return (
-    <motion.section {...sectionAnimation} className="px-6 py-12 sm:py-14" id="tech-stack">
+    <motion.section {...sectionAnimation} className="px-4 sm:px-6 py-10 sm:py-12 md:py-14" id="tech-stack">
       <div className="mx-auto w-full max-w-6xl">
         <p className="text-sm uppercase tracking-[0.25em] text-white/50">
           Built on Enterprise Deep Tech
@@ -224,10 +225,10 @@ function TechStackSection() {
 
 function PhilosophySection() {
   return (
-    <motion.section {...sectionAnimation} className="px-6 py-16 sm:py-20" id="philosophy">
-      <div className="mx-auto grid w-full max-w-6xl gap-10 lg:grid-cols-2 lg:items-center">
-        <div>
-          <h2 className="text-balance text-3xl font-semibold leading-tight text-[#F9F8F4] sm:text-4xl">
+    <motion.section {...sectionAnimation} className="px-4 sm:px-6 py-12 sm:py-16 md:py-20" id="philosophy">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 sm:gap-10 lg:flex-row lg:items-center">
+        <div className="lg:flex-1">
+          <h2 className="text-balance text-2xl font-semibold leading-tight text-[#F9F8F4] sm:text-3xl md:text-4xl">
             Elevation, Not Replacement.
           </h2>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-white/75">
@@ -237,7 +238,7 @@ function PhilosophySection() {
           </p>
         </div>
 
-        <div className="relative mx-auto h-[320px] w-full max-w-[460px] rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md">
+        <div className="relative mx-auto h-[260px] sm:h-[320px] w-full max-w-[460px] rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-md lg:flex-1">
           <div className="absolute inset-0 rounded-3xl bg-[radial-gradient(circle_at_28%_20%,rgba(239,211,11,0.2),transparent_45%),radial-gradient(circle_at_78%_78%,rgba(249,248,244,0.09),transparent_55%)]" />
 
           <div className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#EFD30B]/60 bg-[#EFD30B]/20 shadow-[0_0_35px_rgba(239,211,11,0.45)]" />
@@ -266,12 +267,12 @@ function PhilosophySection() {
 
 function FooterSection() {
   return (
-    <section className="px-6 pb-8 pt-10">
+    <section className="px-4 sm:px-6 pb-8 pt-10">
       <motion.div
         {...sectionAnimation}
-        className="mx-auto w-full max-w-5xl rounded-3xl border border-[#EFD30B]/30 bg-gradient-to-b from-[#EFD30B]/10 to-black/20 px-8 py-14 text-center"
+        className="mx-auto w-full max-w-5xl rounded-3xl border border-[#EFD30B]/30 bg-gradient-to-b from-[#EFD30B]/10 to-black/20 px-5 sm:px-8 py-10 sm:py-14 text-center"
       >
-        <h2 className="text-balance text-3xl font-semibold tracking-tight text-[#F9F8F4] sm:text-5xl">
+        <h2 className="text-balance text-2xl font-semibold tracking-tight text-[#F9F8F4] sm:text-3xl md:text-5xl">
           Ready to become a Director?
         </h2>
         <Link
