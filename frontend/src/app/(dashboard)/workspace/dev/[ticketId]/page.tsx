@@ -126,7 +126,7 @@ export default function DevMissionControlPage() {
   const currentIdx = stepIndex(activeStep);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7rem)] gap-3 max-w-[1400px] mx-auto">
+    <div className="flex flex-col h-[calc(100vh-7rem)] gap-3 max-w-[1400px] mx-auto pb-20 lg:pb-0">
       {/* ─── Header chrome ───────────────────────────── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -143,7 +143,7 @@ export default function DevMissionControlPage() {
 
       {/* ─── Checkpoint Stepper (top, full width) ───── */}
       <div
-        className="rounded-sm px-6 py-4 flex items-center justify-center gap-0"
+        className="rounded-sm px-4 lg:px-6 py-3 lg:py-4 flex items-center justify-center gap-0 overflow-x-auto whitespace-nowrap"
         style={{ background: "#1A1A19", border: "1px solid #333" }}
       >
         {STEPS.map((step, i) => {
@@ -222,9 +222,9 @@ export default function DevMissionControlPage() {
       </div>
 
       {/* ─── Bottom panes ────────────────────────────── */}
-      <div className="flex gap-3 flex-1 min-h-0">
-        {/* ── Live Terminal (70%) ───────────────────── */}
-        <div className="flex flex-col w-[70%] min-h-0">
+      <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0">
+        {/* ── Live Terminal ───────────────────── */}
+        <div className="flex flex-col w-full lg:w-[70%] min-h-0">
           {/* Terminal chrome */}
           <div
             className="flex items-center justify-between px-4 py-2 rounded-t-sm"
@@ -248,7 +248,7 @@ export default function DevMissionControlPage() {
           {/* Terminal body */}
           <div
             ref={terminalRef}
-            className="flex-1 overflow-y-auto px-4 py-3 rounded-b-sm"
+            className="flex-1 h-[50vh] lg:h-auto overflow-y-auto px-3 lg:px-4 py-3 rounded-b-sm"
             style={{
               background: "#000",
               borderBottom: "1px solid #333",
@@ -266,7 +266,7 @@ export default function DevMissionControlPage() {
             ) : (
               <div className="space-y-1">
                 {logs.map((entry, i) => (
-                  <div key={i} className="flex gap-2 font-mono text-xs leading-relaxed">
+                  <div key={i} className="flex gap-2 font-mono text-[10px] md:text-xs leading-relaxed">
                     {/* Timestamp-like prefix */}
                     <span className="text-muted-foreground/25 shrink-0 select-none tabular-nums w-7 text-right">
                       {String(i + 1).padStart(3, "0")}
@@ -312,9 +312,9 @@ export default function DevMissionControlPage() {
           </div>
         </div>
 
-        {/* ── Agent Controls (30%) ─────────────────── */}
+        {/* ── Agent Controls (desktop sidebar) ─── */}
         <div
-          className="w-[30%] rounded-sm flex flex-col"
+          className="hidden lg:flex w-[30%] rounded-sm flex-col"
           style={{ background: "#1A1A19", border: "1px solid #333" }}
         >
           {/* Panel header */}
@@ -434,12 +434,62 @@ export default function DevMissionControlPage() {
       </div>
 
       {/* ─── Footer rule ─────────────────────────────── */}
-      <div className="flex items-center gap-3">
+      <div className="hidden lg:flex items-center gap-3">
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-foreground/5 to-transparent" />
         <span className="font-mono text-[9px] tracking-[0.25em] text-muted-foreground/20 uppercase">
           mission control v1
         </span>
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-foreground/5 to-transparent" />
+      </div>
+
+      {/* ─── Mobile: Sticky action buttons at bottom ─── */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-50 p-3 bg-[#1A1A19]/90 backdrop-blur-md border-t border-foreground/10">
+        <div className="flex gap-2 max-w-[600px] mx-auto">
+          <button
+            onClick={startBuild}
+            disabled={(buildStarted && activeStep !== "done") || catalogLoading || !selectedVendor || !selectedModel}
+            className="flex-1 font-mono text-[10px] tracking-wider uppercase rounded-sm py-3 px-3 transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{
+              background: "rgba(249,248,244,0.05)",
+              border: "1px solid #444",
+              color: "#F9F8F4",
+            }}
+          >
+            {buildStarted && activeStep !== "done"
+              ? "Building…"
+              : activeStep === "done"
+                ? "Restart"
+                : "Start Build"}
+          </button>
+
+          {isWaitingForApproval && (
+            <button
+              onClick={approveCheckpoint}
+              className="flex-1 font-mono text-[10px] tracking-wider uppercase rounded-sm py-3 px-3 transition-all duration-200 animate-pulse"
+              style={{
+                background: "rgba(239,211,11,0.12)",
+                border: "2px solid #EFD30B",
+                color: "#EFD30B",
+                boxShadow: "0 0 20px rgba(239,211,11,0.15)",
+              }}
+            >
+              Approve {activeStep}
+            </button>
+          )}
+
+          {activeStep === "done" && (
+            <div
+              className="flex-1 font-mono text-[10px] tracking-wider uppercase text-center rounded-sm py-3 px-3"
+              style={{
+                background: "rgba(40,200,64,0.08)",
+                border: "1px solid rgba(40,200,64,0.3)",
+                color: "#28C840",
+              }}
+            >
+              ✓ Complete
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

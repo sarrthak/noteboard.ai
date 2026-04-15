@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import type { Node, Edge } from "@xyflow/react";
-import { Sparkles, Loader2, AlertCircle, Ticket } from "lucide-react";
+import { Sparkles, Loader2, AlertCircle, Ticket, ChevronDown } from "lucide-react";
+import { clsx } from "clsx";
 import { ArchitectureCanvas } from "@/components/design/architecture-canvas";
 import { parseMermaidToReactFlow } from "@/lib/mermaidParser";
 import { API_BASE_URL } from "@/lib/api";
@@ -108,11 +109,40 @@ export default function DesignPage() {
     }
   }, [session?.accessToken, ticketId, additionalContext, runtimeVendor, runtimeModel]);
 
+  const [ticketExpanded, setTicketExpanded] = useState(false);
+
   /* ---- Render ---- */
   return (
-    <div className="h-[calc(100vh-60px)] flex overflow-hidden -m-6">
-      {/* Canvas — 75 % */}
-      <div className="w-[75%] h-full bg-[#1A1A19] p-3">
+    <div className="h-[calc(100vh-60px)] flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden -m-4 md:-m-6">
+      {/* Mobile: Collapsible ticket context header */}
+      <div className="lg:hidden border-b border-foreground/10 bg-[#1E1E1D]">
+        <button
+          onClick={() => setTicketExpanded(!ticketExpanded)}
+          className="flex items-center justify-between w-full px-4 py-3"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <Ticket className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <span className="text-sm font-medium text-foreground truncate">
+              {ticketDetails?.title || `Ticket ${ticketId}`}
+            </span>
+          </div>
+          <ChevronDown className={clsx("w-4 h-4 text-foreground/60 transition-transform shrink-0", ticketExpanded && "rotate-180")} />
+        </button>
+        {ticketExpanded && ticketDetails && (
+          <div className="px-4 pb-3 space-y-1">
+            {ticketDetails.description && (
+              <p className="text-xs text-muted-foreground line-clamp-3">{ticketDetails.description}</p>
+            )}
+            <div className="flex gap-2">
+              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">{ticketDetails.type}</span>
+              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">{ticketDetails.priority}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Canvas */}
+      <div className="w-full lg:w-[75%] min-h-[50vh] lg:h-full bg-[#1A1A19] p-2 lg:p-3">
         {nodes.length > 0 ? (
           <ArchitectureCanvas initialNodes={nodes} initialEdges={edges} />
         ) : (
@@ -125,8 +155,8 @@ export default function DesignPage() {
         )}
       </div>
 
-      {/* Right Panel — 25 % */}
-      <div className="w-[25%] h-full border-l border-foreground/10 bg-[#1E1E1D] flex flex-col overflow-y-auto">
+      {/* Right Panel — desktop sidebar + mobile sticky button */}
+      <div className="hidden lg:flex w-[25%] h-full border-l border-foreground/10 bg-[#1E1E1D] flex-col overflow-y-auto">
         {/* Header */}
         <div className="px-5 py-4 border-b border-foreground/10">
           <h2 className="text-sm font-semibold text-foreground tracking-wide uppercase">
@@ -230,6 +260,33 @@ export default function DesignPage() {
             <pre className="rounded-md bg-[#2A2A29] border border-foreground/10 p-3 text-xs text-muted-foreground overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap">
               {rawMermaid}
             </pre>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile: Sticky generate button at bottom */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-50 p-4 bg-[#1A1A19]/90 backdrop-blur-md border-t border-foreground/10">
+        <button
+          onClick={handleGenerate}
+          disabled={isGenerating || !canGenerate}
+          className="w-full flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm font-semibold text-background transition-colors hover:bg-primary-hover disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Generating…
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4" />
+              Auto-Architect
+            </>
+          )}
+        </button>
+        {error && (
+          <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/20 p-2 mt-2">
+            <AlertCircle className="w-3.5 h-3.5 text-destructive shrink-0 mt-0.5" />
+            <p className="text-xs text-destructive">{error}</p>
           </div>
         )}
       </div>
