@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import {
   ChevronDown,
   FolderKanban,
@@ -11,10 +13,13 @@ import {
   Settings,
   User,
   Loader2,
+  Menu,
+  X,
 } from "lucide-react";
 import { clsx } from "clsx";
 import { useProjectStore } from "@/store/useProjectStore";
 import { useModelConfigStore } from "@/store/useModelConfigStore";
+import { navItems } from "@/components/sidebar";
 
 export function Topbar() {
   const { data: session } = useSession();
@@ -22,6 +27,12 @@ export function Topbar() {
   const pathname = usePathname();
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileDrawerOpen(false);
+  }, [pathname]);
   
   const { projects, selectedProjectId, selectProject, fetchProjects, isLoading } = useProjectStore();
   const {
@@ -92,27 +103,37 @@ export function Topbar() {
   const userInitial = session?.user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <header className="h-[60px] bg-background border-b border-foreground/10 flex items-center justify-between px-6 gap-4">
+    <>
+    <header className="h-[60px] bg-background border-b border-foreground/10 flex items-center justify-between px-4 md:px-6 gap-2 md:gap-4">
+      {/* Mobile Hamburger */}
+      <button
+        onClick={() => setMobileDrawerOpen(true)}
+        className="md:hidden flex items-center justify-center w-9 h-9 rounded-sm text-foreground hover:bg-foreground/5 transition-colors shrink-0"
+        aria-label="Open navigation"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
       {/* Left: Project Switcher */}
-      <div className="relative shrink-0" ref={projectDropdownRef}>
+      <div className="relative shrink-0 min-w-0" ref={projectDropdownRef}>
         <button
           onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
           className={clsx(
-            "flex items-center gap-2 px-3 py-2 rounded-sm transition-colors",
+            "flex items-center gap-2 px-3 py-2 rounded-sm transition-colors min-w-0",
             "hover:bg-foreground/5 text-foreground"
           )}
         >
-          <FolderKanban className="w-4 h-4 text-primary" />
+          <FolderKanban className="w-4 h-4 text-primary shrink-0" />
           {isLoading ? (
             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
           ) : (
-            <span className="font-medium text-sm">
+            <span className="font-medium text-sm truncate max-w-[120px] sm:max-w-[200px]">
               {selectedProject?.name || "Select Project"}
             </span>
           )}
           <ChevronDown
             className={clsx(
-              "w-4 h-4 text-muted-foreground transition-transform",
+              "w-4 h-4 text-muted-foreground transition-transform shrink-0",
               projectDropdownOpen && "rotate-180"
             )}
           />
@@ -246,5 +267,86 @@ export function Topbar() {
         )}
       </div>
     </header>
+
+    {/* Mobile Navigation Drawer */}
+    <AnimatePresence>
+      {mobileDrawerOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 bg-black/60 md:hidden"
+            onClick={() => setMobileDrawerOpen(false)}
+          />
+
+          {/* Drawer panel */}
+          <motion.div
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-y-0 left-0 z-50 w-72 bg-[#1A1A19] border-r border-foreground/10 flex flex-col md:hidden"
+          >
+            {/* Drawer header */}
+            <div className="h-[60px] flex items-center justify-between px-4 border-b border-foreground/10">
+              <Link href="/workspace" className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
+                  <span className="text-background font-bold text-lg">N</span>
+                </div>
+                <span className="font-semibold text-foreground">
+                  noteboard<span className="text-primary">.ai</span>
+                </span>
+              </Link>
+              <button
+                onClick={() => setMobileDrawerOpen(false)}
+                className="flex items-center justify-center w-9 h-9 rounded-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+                aria-label="Close navigation"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Nav items */}
+            <nav className="flex-1 py-4 px-3 space-y-1">
+              {navItems.map((item) => {
+                const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                const Icon = item.icon;
+
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    onClick={() => setMobileDrawerOpen(false)}
+                    className={clsx(
+                      "flex items-center gap-3 px-3 py-3 rounded-sm transition-colors",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                    )}
+                  >
+                    <Icon
+                      className={clsx(
+                        "w-5 h-5 shrink-0",
+                        isActive && "drop-shadow-[0_0_8px_rgba(239,211,11,0.5)]"
+                      )}
+                    />
+                    <span className="text-sm font-medium">{item.name}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* Drawer footer */}
+            <div className="p-4 border-t border-foreground/10">
+              <p className="text-xs text-muted-foreground">© 2026 noteboard.ai</p>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+    </>
   );
 }
