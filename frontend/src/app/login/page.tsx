@@ -50,7 +50,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Starmap />
 
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md mx-4">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-foreground tracking-tight">
@@ -62,7 +62,7 @@ export default function LoginPage() {
         </div>
 
         {/* Login Card */}
-        <div className="border border-foreground/10 bg-background/80 backdrop-blur-sm p-8">
+        <div className="border border-foreground/10 bg-background/80 backdrop-blur-sm p-6 md:p-8">
           <h2 className="text-xl font-semibold text-foreground mb-6">
             Sign in to your account
           </h2>
