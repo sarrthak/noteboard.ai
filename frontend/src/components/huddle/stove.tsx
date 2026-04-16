@@ -10,6 +10,7 @@ import {
 import { useSession } from "next-auth/react";
 import { useHuddleStore, KanbanTicket, KanbanColumns } from "@/store/useHuddleStore";
 import { API_BASE_URL } from "@/lib/api";
+import { useActivityStore } from "@/store/useActivityStore";
 
 interface ColumnConfig {
   id: keyof KanbanColumns;
@@ -31,13 +32,30 @@ const STATUS_TO_COLUMN: Record<string, keyof KanbanColumns> = {
   review: "review",
 };
 
+const COLUMN_TO_STATUS: Record<keyof KanbanColumns, string> = {
+  todo: "open",
+  inProgress: "in_progress",
+  review: "done",
+};
+
 interface StoveProps {
   projectId?: string;
+}
+
+interface TicketApiResponse {
+  id: string;
+  title: string;
+  description: string | null;
+  business_value: string | null;
+  type: string;
+  priority: string;
+  status: string;
 }
 
 export function Stove({ projectId }: StoveProps) {
   const { data: session } = useSession();
   const { columns, updateColumn, setColumns } = useHuddleStore();
+  const logActivity = useActivityStore((state) => state.logActivity);
   const [isLoading, setIsLoading] = useState(false);
 
   // Fetch tickets from backend on mount
@@ -60,7 +78,7 @@ export function Stove({ projectId }: StoveProps) {
           throw new Error("Failed to fetch tickets");
         }
 
-        const data = await response.json();
+        const data: TicketApiResponse[] = await response.json();
 
         // Organize tickets into columns based on status
         const newColumns: KanbanColumns = {
@@ -69,7 +87,7 @@ export function Stove({ projectId }: StoveProps) {
           review: [],
         };
 
-        data.forEach((ticket: any) => {
+        data.forEach((ticket) => {
           const columnId = STATUS_TO_COLUMN[ticket.status] || "todo";
           const kanbanTicket: KanbanTicket = {
             id: String(ticket.id),
@@ -93,7 +111,7 @@ export function Stove({ projectId }: StoveProps) {
     fetchTickets();
   }, [projectId, session?.accessToken, setColumns]);
 
-  const handleDragEnd = (result: DropResult) => {
+  const handleDragEnd = async (result: DropResult) => {
     const { source, destination } = result;
 
     // Dropped outside a droppable area
@@ -109,6 +127,11 @@ export function Stove({ projectId }: StoveProps) {
 
     const sourceColumnId = source.droppableId as keyof KanbanColumns;
     const destColumnId = destination.droppableId as keyof KanbanColumns;
+    const previousColumns = {
+      todo: [...columns.todo],
+      inProgress: [...columns.inProgress],
+      review: [...columns.review],
+    };
 
     const sourceColumn = [...columns[sourceColumnId]];
     const destColumn =
@@ -126,6 +149,33 @@ export function Stove({ projectId }: StoveProps) {
     } else {
       updateColumn(sourceColumnId, sourceColumn);
       updateColumn(destColumnId, destColumn);
+    }
+
+    if (!session?.accessToken || sourceColumnId === destColumnId) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/tickets/${movedTicket.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+        body: JSON.stringify({ status: COLUMN_TO_STATUS[destColumnId] }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to persist ticket status");
+      }
+
+      logActivity({
+        message: `Moved \"${movedTicket.title}\" to ${destColumnId === "todo" ? "To Do" : destColumnId === "inProgress" ? "In Progress" : "Done"}`,
+        href: projectId ? `/workspace/huddle?project=${projectId}` : "/workspace/huddle",
+      });
+    } catch (error) {
+      setColumns(previousColumns);
+      console.error("Failed to update ticket status:", error);
     }
   };
 

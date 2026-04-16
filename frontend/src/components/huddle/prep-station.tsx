@@ -9,6 +9,7 @@ import { useSession } from "next-auth/react";
 import { createAudioFormData } from "@/lib/audio-utils";
 import { API_BASE_URL } from "@/lib/api";
 import { useModelConfigStore } from "@/store/useModelConfigStore";
+import { useActivityStore } from "@/store/useActivityStore";
 
 interface PrepStationProps {
   projectId?: string;
@@ -49,10 +50,12 @@ export function PrepStation({ projectId }: PrepStationProps) {
     stopRecording,
     setTranscript,
     setDraftTickets,
+    updateDraftTicket,
     approveTicket,
     removeDraftTicket,
     addCapabilities,
   } = useHuddleStore();
+  const logActivity = useActivityStore((state) => state.logActivity);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -213,6 +216,10 @@ export function PrepStation({ projectId }: PrepStationProps) {
 
       const data = await response.json();
       setDraftTickets(data.tickets);
+      logActivity({
+        message: `Generated ${data.tickets.length} capabilities from Huddle transcript`,
+        href: projectId ? `/workspace/huddle?project=${projectId}` : "/workspace/huddle",
+      });
     } catch (error) {
       console.error("Failed to generate tickets:", error);
       alert("Failed to generate tickets. Please try again.");
@@ -250,11 +257,15 @@ export function PrepStation({ projectId }: PrepStationProps) {
             model: runtimeModel,
             tickets: draftTickets.map((t) => ({
               title: t.title,
-              description: t.description,
+              description: [t.description, t.additional_context?.trim() ? `Additional Context:\n${t.additional_context.trim()}` : ""]
+                .filter(Boolean)
+                .join("\n\n"),
               business_value: t.business_value,
               type: t.type || "feature",
               priority: t.priority || "medium",
               dependencies: t.dependencies || [],
+              depends_on: t.depends_on || [],
+              related_to: t.related_to || [],
             })),
           }),
         }
@@ -280,6 +291,10 @@ export function PrepStation({ projectId }: PrepStationProps) {
 
       // Clear draft tickets
       setDraftTickets([]);
+      logActivity({
+        message: `Confirmed ${data.tickets.length} capabilities to ticket board`,
+        href: projectId ? `/workspace/huddle?project=${projectId}` : "/workspace/huddle",
+      });
     } catch (error) {
       console.error("Failed to confirm tickets:", error);
       alert("Failed to confirm tickets. Please try again.");
@@ -427,21 +442,50 @@ export function PrepStation({ projectId }: PrepStationProps) {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-foreground text-sm">
-                      {ticket.title}
-                    </h4>
-                    <p className="text-xs text-foreground/60 mt-1 line-clamp-2">
-                      {ticket.description}
-                    </p>
-                    {ticket.business_value && (
-                      <p className="text-xs text-[#EFD30B]/80 mt-2 line-clamp-1">
-                        💡 {ticket.business_value}
-                      </p>
-                    )}
+                    <input
+                      value={ticket.title}
+                      onChange={(event) =>
+                        updateDraftTicket(index, { title: event.target.value })
+                      }
+                      placeholder="Capability title"
+                      className="w-full bg-transparent border border-foreground/15 rounded-md px-2 py-1.5 text-sm text-foreground focus:outline-none focus:border-[#EFD30B]/60"
+                    />
+                    <textarea
+                      value={ticket.description}
+                      onChange={(event) =>
+                        updateDraftTicket(index, { description: event.target.value })
+                      }
+                      placeholder="Capability description"
+                      rows={2}
+                      className="mt-2 w-full bg-transparent border border-foreground/15 rounded-md px-2 py-1.5 text-xs text-foreground/80 resize-none focus:outline-none focus:border-[#EFD30B]/60"
+                    />
+                    <input
+                      value={ticket.business_value || ""}
+                      onChange={(event) =>
+                        updateDraftTicket(index, { business_value: event.target.value })
+                      }
+                      placeholder="Business value"
+                      className="mt-2 w-full bg-transparent border border-[#EFD30B]/25 rounded-md px-2 py-1.5 text-xs text-[#EFD30B]/90 focus:outline-none focus:border-[#EFD30B]/60"
+                    />
+                    <textarea
+                      value={ticket.additional_context || ""}
+                      onChange={(event) =>
+                        updateDraftTicket(index, { additional_context: event.target.value })
+                      }
+                      placeholder="Add more context for this ticket (optional)"
+                      rows={2}
+                      className="mt-2 w-full bg-transparent border border-foreground/15 rounded-md px-2 py-1.5 text-xs text-foreground/80 resize-none focus:outline-none focus:border-[#EFD30B]/60"
+                    />
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
-                      onClick={() => approveTicket(index)}
+                      onClick={() => {
+                        approveTicket(index);
+                        logActivity({
+                          message: `Moved capability \"${ticket.title}\" to stove queue`,
+                          href: projectId ? `/workspace/huddle?project=${projectId}` : "/workspace/huddle",
+                        });
+                      }}
                       className="p-2 rounded-md bg-green-500/10 text-green-500 
                                  hover:bg-green-500/20 transition-colors"
                       title="Approve capability"

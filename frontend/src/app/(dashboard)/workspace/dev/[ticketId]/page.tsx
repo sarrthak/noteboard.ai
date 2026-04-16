@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { API_BASE_URL } from "@/lib/api";
 import { useModelConfigStore } from "@/store/useModelConfigStore";
+import { useActivityStore } from "@/store/useActivityStore";
 
 /* ── Types ────────────────────────────────────────────────── */
 
@@ -40,6 +41,7 @@ export default function DevMissionControlPage() {
     isLoading: catalogLoading,
   } = useModelConfigStore();
   const ticketId = params.ticketId;
+  const logActivity = useActivityStore((state) => state.logActivity);
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [activeStep, setActiveStep] = useState<Step>("idle");
@@ -107,7 +109,11 @@ export default function DevMissionControlPage() {
     setLogs([]);
     setActiveStep("idle");
     setIsWaitingForApproval(false);
-  }, [session?.accessToken, ticketId, selectedVendor, selectedModel]);
+    logActivity({
+      message: `Started dev build for ticket ${ticketId?.slice(0, 8)}`,
+      href: `/workspace/dev/${ticketId}`,
+    });
+  }, [session?.accessToken, ticketId, selectedVendor, selectedModel, logActivity]);
 
   const approveCheckpoint = useCallback(async () => {
     if (!session?.accessToken || !ticketId || activeStep === "idle" || activeStep === "done") return;
@@ -120,7 +126,11 @@ export default function DevMissionControlPage() {
       body: JSON.stringify({ step: activeStep }),
     });
     setIsWaitingForApproval(false);
-  }, [session?.accessToken, ticketId, activeStep]);
+    logActivity({
+      message: `Approved ${activeStep} checkpoint for ticket ${ticketId?.slice(0, 8)}`,
+      href: `/workspace/dev/${ticketId}`,
+    });
+  }, [session?.accessToken, ticketId, activeStep, logActivity]);
 
   /* ── Render ─────────────────────────────────────────── */
   const currentIdx = stepIndex(activeStep);

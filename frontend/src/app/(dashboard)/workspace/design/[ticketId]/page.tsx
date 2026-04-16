@@ -10,6 +10,7 @@ import { ArchitectureCanvas } from "@/components/design/architecture-canvas";
 import { parseMermaidToReactFlow } from "@/lib/mermaidParser";
 import { API_BASE_URL } from "@/lib/api";
 import { useModelConfigStore } from "@/store/useModelConfigStore";
+import { useActivityStore } from "@/store/useActivityStore";
 
 interface TicketDetails {
   id: string;
@@ -28,6 +29,7 @@ export default function DesignPage() {
   const runtimeVendor = selectedVendor || "openai";
   const runtimeModel = selectedModel || "gpt-4o";
   const ticketId = params.ticketId;
+  const logActivity = useActivityStore((state) => state.logActivity);
   const canGenerate = Boolean(session?.accessToken && ticketId);
 
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -102,12 +104,16 @@ export default function DesignPage() {
       console.log("Parsed edges:", e);
       setNodes(n);
       setEdges(e);
+      logActivity({
+        message: `Generated architecture for ${ticketDetails?.title || `ticket ${ticketId}`}`,
+        href: `/workspace/design/${ticketId}`,
+      });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setIsGenerating(false);
     }
-  }, [session?.accessToken, ticketId, additionalContext, runtimeVendor, runtimeModel]);
+  }, [session?.accessToken, ticketId, additionalContext, runtimeVendor, runtimeModel, logActivity, ticketDetails?.title]);
 
   const [ticketExpanded, setTicketExpanded] = useState(false);
 

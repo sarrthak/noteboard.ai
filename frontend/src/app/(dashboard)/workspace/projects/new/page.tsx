@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createAuthenticatedApi } from "@/lib/api";
 import { Project, useProjectStore } from "@/store/useProjectStore";
+import { useActivityStore } from "@/store/useActivityStore";
 
 function extractError(err: unknown): string {
   if (!axios.isAxiosError(err)) {
@@ -33,6 +34,7 @@ export default function NewProjectPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const setActiveProject = useProjectStore((s) => s.setActiveProject);
+  const logActivity = useActivityStore((state) => state.logActivity);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -59,6 +61,10 @@ export default function NewProjectPage() {
 
       const fresh = await api.get<Project>(`/projects/${created.data.id}`);
       setActiveProject(fresh.data);
+      logActivity({
+        message: `Created project \"${fresh.data.name}\"`,
+        href: `/workspace/huddle?project=${fresh.data.id}`,
+      });
 
       router.push("/workspace/huddle");
     } catch (err) {

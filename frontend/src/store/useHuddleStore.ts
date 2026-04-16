@@ -4,6 +4,7 @@ export interface DraftTicket {
   title: string;
   description: string;
   business_value: string;
+  additional_context?: string;
   priority?: string;
   type?: string;
   dependencies?: string[];  // Legacy support
@@ -60,6 +61,7 @@ interface HuddleState {
   addDraftTicket: (ticket: DraftTicket) => void;
   removeDraftTicket: (index: number) => void;
   setDraftTickets: (tickets: DraftTicket[]) => void;
+  updateDraftTicket: (index: number, updates: Partial<DraftTicket>) => void;
   approveTicket: (index: number) => void;
   updateColumn: (columnId: keyof KanbanColumns, tickets: KanbanTicket[]) => void;
   setColumns: (columns: KanbanColumns) => void;
@@ -99,7 +101,7 @@ const initialState = {
   },
 };
 
-export const useHuddleStore = create<HuddleState>((set, get) => ({
+export const useHuddleStore = create<HuddleState>((set) => ({
   ...initialState,
 
   startRecording: () => set({ isRecording: true }),
@@ -121,6 +123,13 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
   setDraftTickets: (tickets: DraftTicket[]) =>
     set({ draftTickets: tickets }),
 
+  updateDraftTicket: (index: number, updates: Partial<DraftTicket>) =>
+    set((state) => ({
+      draftTickets: state.draftTickets.map((ticket, i) =>
+        i === index ? { ...ticket, ...updates } : ticket
+      ),
+    })),
+
   approveTicket: (index: number) =>
     set((state) => {
       const ticket = state.draftTickets[index];
@@ -130,8 +139,8 @@ export const useHuddleStore = create<HuddleState>((set, get) => ({
       const kanbanTicket: KanbanTicket = {
         ...ticket,
         id: crypto.randomUUID(),
-        type: "feature",
-        priority: "medium",
+        type: (ticket.type as KanbanTicket["type"]) || "feature",
+        priority: (ticket.priority as KanbanTicket["priority"]) || "medium",
       };
 
       return {
