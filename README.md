@@ -2,11 +2,11 @@
   <img src="image/README/noteboard-logo.jpg" alt="noteboard.ai" width="720" />
 </p>
 
-<a align="center" href="https://noteboardai.tech">
-  <button style="background-color: #efd30b; color: #1A1A19; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
-    NOTE<span style="color: #F9F8F4">BOARD</span>.AI
-  </button>
-</a>
+<p align="center">
+  <a href="https://noteboardai.tech">
+    <img src="https://img.shields.io/badge/NOTEBOARD.AI-EFD30B?style=for-the-badge&logoColor=1A1A19" alt="noteboard.ai" height="40" />
+  </a>
+</p>
 
 <p align="center">
   <strong>From chaos to clarity — one voice command at a time.</strong><br/>
@@ -118,18 +118,18 @@ Plan → [Human Approval] → Draft → [Human Approval] → Verify → Deploy
 
 noteboard.ai runs as a **Dockerized microservice stack** orchestrated by `docker-compose`:
 
-| Layer | Technology | Role |
-|---|---|---|
-| **Frontend** | Next.js 14, Tailwind CSS, Framer Motion | Dashboard, Huddle, Design Canvas, Dev Mission Control |
-| **API Gateway** | Caddy 2 | Reverse proxy, automatic HTTPS, routing |
-| **Backend API** | FastAPI (Python 3.11+) | REST endpoints, WebSocket manager, auth |
-| **Agentic Core** | LangGraph | Plan → Draft → Verify state machine |
-| **Semantic Layer** | Neo4j 5.20 (Graph DB) | Knowledge graph — entities, relationships, dependencies |
-| **Vector Store** | Weaviate 1.25 | DAG + historical pattern embeddings |
-| **Task Queue** | Celery + Redis | Async job processing |
-| **Database** | PostgreSQL (Alpine) | Users, projects, tickets, persistent state |
-| **Cache / Pub-Sub** | Redis (AOF-enabled) | Checkpoint state, model catalog cache, session data |
-| **AI Providers** | OpenAI, OpenRouter | Transcription (Whisper), generation (GPT-4o, Claude, DeepSeek, etc.) |
+| Layer                     | Technology                              | Role                                                                 |
+| ------------------------- | --------------------------------------- | -------------------------------------------------------------------- |
+| **Frontend**        | Next.js 14, Tailwind CSS, Framer Motion | Dashboard, Huddle, Design Canvas, Dev Mission Control                |
+| **API Gateway**     | Caddy 2                                 | Reverse proxy, automatic HTTPS, routing                              |
+| **Backend API**     | FastAPI (Python 3.11+)                  | REST endpoints, WebSocket manager, auth                              |
+| **Agentic Core**    | LangGraph                               | Plan → Draft → Verify state machine                                |
+| **Semantic Layer**  | Neo4j 5.20 (Graph DB)                   | Knowledge graph — entities, relationships, dependencies             |
+| **Vector Store**    | Weaviate 1.25                           | DAG + historical pattern embeddings                                  |
+| **Task Queue**      | Celery + Redis                          | Async job processing                                                 |
+| **Database**        | PostgreSQL (Alpine)                     | Users, projects, tickets, persistent state                           |
+| **Cache / Pub-Sub** | Redis (AOF-enabled)                     | Checkpoint state, model catalog cache, session data                  |
+| **AI Providers**    | OpenAI, OpenRouter                      | Transcription (Whisper), generation (GPT-4o, Claude, DeepSeek, etc.) |
 
 ### Key Design Decisions
 
@@ -176,10 +176,10 @@ This spins up all 8 services (API, Worker, Frontend, Postgres, Redis, Neo4j, Wea
 
 ### 3. Access
 
-| Service | URL |
-|---|---|
-| **Dashboard** | `http://localhost:3000` |
-| **API Docs** | `http://localhost:8000/docs` |
+| Service                 | URL                                  |
+| ----------------------- | ------------------------------------ |
+| **Dashboard**     | `http://localhost:3000`            |
+| **API Docs**      | `http://localhost:8000/docs`       |
 | **Neo4j Browser** | `http://localhost:7474` (internal) |
 
 ### 4. Seed Demo Data (Optional)
@@ -259,38 +259,30 @@ noteboard/
 ## Future Work
 
 - **Multi-agent collaboration** — Expand the LangGraph pipeline to support multiple specialized agents (frontend agent, backend agent, testing agent) working in parallel with conflict resolution and merge strategies.
-
 - **Live deployment integration** — Connect the Dev pipeline to real CI/CD systems (GitHub Actions, AWS CodePipeline) so the Verify → Deploy stage actually provisions and deploys to staging/production environments.
-
 - **RAG-powered context retrieval** — Leverage Weaviate's vector store for retrieval-augmented generation, allowing the AI to reference historical design patterns, past tickets, and codebase context when generating new architecture or code.
-
 - **Collaborative workspaces** — Support real-time multi-user collaboration with shared project boards, concurrent knowledge graph editing, and role-based access control (PM, Architect, Developer views).
-
 - **Custom knowledge graph schemas** — Allow teams to define custom entity types, relationship types, and constraint rules in the knowledge graph, making the Huddle extraction pipeline adaptable to domain-specific vocabularies (healthcare, fintech, etc.).
-
 - **Automated test generation** — Extend the Dev Forge to generate unit tests, integration tests, and API contract tests alongside implementation code, with coverage reporting built into the checkpoint approval flow.
-
 - **Plugin / Extension system** — Build a plugin architecture that lets teams integrate their own LLM providers, custom deployment targets, or domain-specific design templates into the pipeline.
-
 - **Offline-first progressive web app** — Package the frontend as a PWA with offline ticket editing, local knowledge graph caching, and background sync when connectivity returns.
-
 - **Metrics and observability dashboard** — Track AI agent performance (token usage, generation quality scores, checkpoint approval rates) and project velocity metrics to provide data-driven insights into the development process.
 
 ---
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|---|---|---|
-| `OPENAI_API_KEY` | Yes | OpenAI API key for transcription and generation |
-| `OPENROUTER_API_KEY` | No | OpenRouter key for multi-vendor model access |
-| `NEXTAUTH_SECRET` | Yes | NextAuth.js session encryption secret |
-| `POSTGRES_USER` | No | PostgreSQL username (default: `noteboard`) |
-| `POSTGRES_PASSWORD` | Yes | PostgreSQL password |
-| `POSTGRES_DB` | No | Database name (default: `noteboard`) |
-| `NEO4J_PASSWORD` | Yes | Neo4j authentication password |
-| `DOMAIN_NAME` | No | Production domain for Caddy HTTPS |
-| `DEV_AGENT_OPENAI_BASE_URL` | No | Custom OpenAI-compatible base URL |
+| Variable                      | Required | Description                                     |
+| ----------------------------- | -------- | ----------------------------------------------- |
+| `OPENAI_API_KEY`            | Yes      | OpenAI API key for transcription and generation |
+| `OPENROUTER_API_KEY`        | No       | OpenRouter key for multi-vendor model access    |
+| `NEXTAUTH_SECRET`           | Yes      | NextAuth.js session encryption secret           |
+| `POSTGRES_USER`             | No       | PostgreSQL username (default:`noteboard`)     |
+| `POSTGRES_PASSWORD`         | Yes      | PostgreSQL password                             |
+| `POSTGRES_DB`               | No       | Database name (default:`noteboard`)           |
+| `NEO4J_PASSWORD`            | Yes      | Neo4j authentication password                   |
+| `DOMAIN_NAME`               | No       | Production domain for Caddy HTTPS               |
+| `DEV_AGENT_OPENAI_BASE_URL` | No       | Custom OpenAI-compatible base URL               |
 
 ---
 
