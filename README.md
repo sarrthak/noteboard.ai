@@ -1,8 +1,9 @@
 <p align="center">
   <img src="image/README/noteboard-logo.jpg" alt="noteboard.ai" width="720" />
 </p>
-
-<a href="https://noteboardai.tech"><h1 align="center">noteboard.ai</h1></a>
+<div align="center">
+  <a href="https://noteboardai.tech">noteboard.ai</a>
+</div>
 
 <p align="center">
   <strong>From chaos to clarity — one voice command at a time.</strong><br/>
