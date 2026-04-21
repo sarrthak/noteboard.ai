@@ -1,9 +1,12 @@
 <p align="center">
   <img src="image/README/noteboard-logo.jpg" alt="noteboard.ai" width="720" />
 </p>
-<div align="center">
-  <a href="https://noteboardai.tech">noteboard.ai</a>
-</div>
+
+<a align="center" href="https://noteboardai.tech">
+  <button style="background-color: #efd30b; color: #1A1A19; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">
+    NOTE<span style="color: #F9F8F4">BOARD</span>.AI
+  </button>
+</a>
 
 <p align="center">
   <strong>From chaos to clarity — one voice command at a time.</strong><br/>
