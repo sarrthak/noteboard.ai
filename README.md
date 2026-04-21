@@ -2,7 +2,7 @@
   <img src="image/README/noteboard-logo.jpg" alt="noteboard.ai" width="720" />
 </p>
 
-<h1 align="center">noteboard.ai</h1>
+<a href="https://noteboardai.tech"><h1 align="center">noteboard.ai</h1></a>
 
 <p align="center">
   <strong>From chaos to clarity — one voice command at a time.</strong><br/>
