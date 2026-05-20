@@ -27,7 +27,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/license-Proprietary-EFD30B?style=flat-square" alt="License" />
+  <img src="https://img.shields.io/badge/license-MIT-EFD30B?style=flat-square" alt="License" />
   <img src="https://img.shields.io/badge/python-3.11+-blue?style=flat-square&logo=python&logoColor=white" alt="Python" />
   <img src="https://img.shields.io/badge/node-18+-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node" />
   <img src="https://img.shields.io/badge/pnpm-10.x-F69220?style=flat-square&logo=pnpm&logoColor=white" alt="pnpm" />
@@ -288,9 +288,7 @@ noteboard/
 
 ## License
 
-This project is **proprietary software**. All rights reserved. See [LICENSE](LICENSE) for full terms.
-
-Unauthorized copying, modification, distribution, or use of this software is strictly prohibited.
+This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for full terms.
 
 ---
 
